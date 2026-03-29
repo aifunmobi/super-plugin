@@ -50,9 +50,14 @@ test('Uses loops= syntax', () => {
 
 test('All option keywords present', () => {
   const required = ['simple', 'no-simple', 'research', 'no-research', 'map', 'no-map',
-    'experiment', 'no-experiment', 'dry', 'clean', 'loops='];
+    'experiment', 'no-experiment', 'dry', 'clean', 'update', 'loops='];
   const missing = required.filter(k => !SKILL.includes(k));
   assert(missing.length === 0, `Missing: ${missing.join(', ')}`);
+});
+
+test('Update meta-command documented', () => {
+  assert(SKILL.includes('/super update'), 'Missing /super update section');
+  assert(SKILL.includes('Update to v'), 'Missing update output example');
 });
 
 test('Execution plan section exists', () => {

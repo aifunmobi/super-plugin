@@ -24,6 +24,51 @@ Archives or removes the `.super/` directory for the current project.
 
 **Auto-clean:** If `.super/state.json` shows all capabilities completed and the last update was >30 days ago, suggest cleanup proactively when `/super` is next invoked.
 
+### `/super update`
+
+Checks GitHub for a newer version and self-updates.
+
+**Behavior:**
+1. Run `git -C <plugin_dir> fetch --quiet origin main` to get latest remote state
+2. Compare local version (`plugin.json`) with remote version (`git show origin/main:.claude-plugin/plugin.json`)
+3. If remote is newer, show what changed (commit log since current version) and ask to confirm
+4. If user confirms, run `git -C <plugin_dir> pull --ff-only origin main`
+5. Show the new version number and suggest restarting Claude Code
+6. If already up to date, say so
+
+**Where is the plugin dir?** Check these locations in order:
+1. `~/.claude/plugins/marketplaces/local/plugins/super/` (symlink install)
+2. If `~/.claude/skills/super/SKILL.md` is a symlink, follow it to find the repo root
+
+**If the plugin dir is not a git repo** (copied, not cloned), offer to re-install:
+```
+Your /super installation was copied, not cloned — can't pull updates.
+Run this to switch to an updatable install:
+
+  bash <(curl -s https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh)
+```
+
+**Output format:**
+```
+/super update
+
+Current version: v1.5.0
+Remote version:  v1.6.0
+
+Changes:
+  abc1234 feat: add foobar capability
+  def5678 fix: map cache staleness edge case
+
+Update to v1.6.0? [Y/n]
+```
+
+Or if up to date:
+```
+/super update
+
+v1.5.0 — already up to date.
+```
+
 ### `/super dry <task>`
 
 Shows which capabilities the router would activate — without executing anything.

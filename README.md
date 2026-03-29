@@ -66,6 +66,16 @@ Then enable with `/plugins` or add to `settings.json`:
 
 </details>
 
+### Updating
+
+From inside Claude Code:
+
+```
+/super update
+```
+
+Checks GitHub for a newer version, shows what changed, and updates in place. No re-install needed.
+
 ## Usage
 
 Just say `/super` followed by what you want:
@@ -160,6 +170,7 @@ All loops auto-stop on **diminishing returns**: if an iteration produces <10% ne
 |---|---|---|
 | `dry` | Preview routing decisions without executing anything | `/super dry add a Redis caching layer` |
 | `clean` | Archive or delete the `.super/` directory | `/super clean` |
+| `update` | Check GitHub for newer version and self-update | `/super update` |
 
 #### Combining options
 
@@ -284,6 +295,7 @@ Maps are tagged with the git SHA at time of creation. On next run:
 
 ### v1.5.0
 
+- **Self-update** — `/super update` checks GitHub for newer versions and updates in place
 - **Simplified syntax** — All options are plain words (`research`, `no-map`, `loops=5`, `dry`, `clean`). No `+`, `-`, or `--` prefixes.
 - **Execution plan & confirmation** — Shows step-by-step plan and waits for user OK before starting.
 - **Loop control** — `loops=N` to set iteration limits. Defaults: research 2, plan verify 2, experiments 3.
