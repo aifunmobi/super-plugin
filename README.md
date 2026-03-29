@@ -77,26 +77,32 @@ From inside Claude Code:
 
 Checks GitHub for a newer version, shows what changed, and updates in place. No re-install needed.
 
-### For developers: /refresh
+### Bonus: /refresh (universal project publish)
 
-If you're modifying the /super plugin itself, `/refresh` automates the full publish workflow:
+Works in **any git repo** — not just the super plugin. Detects your project type and does the right thing:
 
 ```
-/refresh          # auto-detect version bump, test, commit, push
-/refresh minor    # force minor version bump
-/refresh 2.0.0    # force specific version
-/refresh --dry    # preview what would happen
+/refresh              # auto-detect everything, test, bump, commit, push
+/refresh minor        # force minor version bump
+/refresh 2.0.0        # force specific version
+/refresh dry          # preview what would happen
+/refresh no-test      # skip tests
+/refresh no-push      # commit but don't push
 ```
 
-What it does (in order):
-1. Runs the full test suite (39 tests) — stops if any fail
-2. Determines version bump from changes (or uses your override)
-3. Updates `plugin.json` with new version
-4. Adds a changelog entry to `README.md`
-5. Verifies symlinks (recreates if broken)
-6. Commits with conventional commit message
-7. Pushes to GitHub
-8. Verifies everything is live and reports results
+What it does (adapts to your project):
+
+| Step | What it does | Adapts to |
+|---|---|---|
+| 1. Detect | Reads your project structure | Node, Python, Rust, Go, Ruby, Claude plugins, or generic |
+| 2. Test | Runs your test suite | npm test, pytest, cargo test, make test, or custom runner |
+| 3. Version | Bumps version in the right manifest | package.json, Cargo.toml, pyproject.toml, plugin.json, git tags |
+| 4. Docs | Updates changelog in CHANGELOG.md or README.md | Conventional changelog format |
+| 5. Symlinks | Verifies Claude plugin symlinks | Only for Claude plugins |
+| 6. Backup | Updates Desktop zip if one exists | Only if previous zip found |
+| 7. Commit | Conventional commit with Co-Authored-By | Matches your existing commit style |
+| 8. Push | Push to remote | Handles rebase conflicts gracefully |
+| 9. Report | Summary of everything that happened | Only shows relevant sections |
 
 ## Usage
 
@@ -329,9 +335,13 @@ Maps are tagged with the git SHA at time of creation. On next run:
 
 ## Changelog
 
+### v1.9.0
+
+- **Universal `/refresh`** — Rewritten to work in any git repo, not just the super plugin. Auto-detects project type (Node, Python, Rust, Go, Ruby, Claude plugin), runs the right test suite, bumps version in the right manifest, updates the right changelog, handles symlinks for plugins, and creates zip backups if previous ones exist.
+
 ### v1.8.0
 
-- **`/refresh` skill** — One-command publish workflow: runs 39 tests, bumps version, updates changelog, verifies symlinks, commits, and pushes. Supports `patch`/`minor`/`major`/explicit version overrides and `--dry` preview.
+- **`/refresh` skill** — One-command publish workflow for the super plugin.
 
 ### v1.7.0
 
