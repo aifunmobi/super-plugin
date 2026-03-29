@@ -1,32 +1,59 @@
-# Super - Autonomous Task Engine for Claude Code
+# /super — The Only Slash Command You Need
 
-A Claude Code plugin that autonomously routes tasks to the right combination of research, planning, building, experimentation, orchestration, and codebase mapping. Handles everything from one-line typo fixes to multi-service architecture overhauls.
+**Stop micromanaging your AI.** Just say `/super` and describe what you want. The plugin figures out the rest — whether it's a one-line typo fix or a full-stack feature spanning multiple services.
 
-## Install
+`/super` is an autonomous task engine for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that combines **research, planning, codebase mapping, building, experimentation, orchestration, and CLI generation** into a single command. It reads your request, classifies the complexity, and activates exactly the right combination of capabilities — no sub-commands to memorize, no manual workflow to follow.
 
-### Option A: One-liner (recommended)
+## Why /super?
+
+**Without /super**, you're the project manager. You decide when to research, when to plan, when to map the codebase, when to parallelize. You repeat yourself across sessions. You lose experiment results when context resets.
+
+**With /super**, Claude becomes a senior engineer who knows the playbook:
+
+- Trivial fix? It just does it. No ceremony.
+- Complex feature? It maps your codebase, researches best practices, creates a verified plan, then builds it phase by phase with quality gates.
+- Performance problem? It measures a baseline, runs scientific experiments, keeps what works, discards what doesn't — and remembers all of it across sessions.
+- Multiple independent tasks? It fans out parallel agents, each with their own fresh context.
+
+Everything is persisted to `.super/` — surviving context resets, session boundaries, and your laptop going to sleep. Pick up exactly where you left off.
+
+## What makes it different
+
+| Problem | How /super solves it |
+|---|---|
+| Claude jumps straight to coding without thinking | **Plan guard** — enforces research and planning before any code is written |
+| Codebase gets re-analyzed every session | **Incremental map caching** — only re-maps what actually changed (git SHA tracking) |
+| You forget which approach you already tried | **Experiment continuity** — baselines, hypotheses, and results persist across sessions |
+| Simple tasks get buried in ceremony | **SIMPLE fast path** — typo fixes and config changes skip the full pipeline |
+| The router picks wrong capabilities | **Capability overrides** — `+research -map` to force exactly what you want |
+| Long tasks feel like a black box | **Streaming progress** — structured status updates at every milestone |
+| Stale artifacts pile up | **Cleanup command** — `/super clean` to archive or remove old work |
+
+## Quick start
 
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh)
 ```
 
-This clones the repo into your Claude Code plugins directory and enables it automatically.
+That's it. Restart Claude Code and start using `/super`.
 
-### Option B: Manual clone
+<details>
+<summary>Other install methods</summary>
+
+### Manual clone
 
 ```bash
 git clone https://github.com/aifunmobi/super-plugin.git \
   ~/.claude/plugins/marketplaces/local/plugins/super
 ```
 
-### Option C: From Claude Code
+### From Claude Code
 
-```bash
-# In Claude Code, run:
+```
 /install-plugin https://github.com/aifunmobi/super-plugin
 ```
 
-Then enable with `/plugins` or add to settings.json:
+Then enable with `/plugins` or add to `settings.json`:
 
 ```json
 {
@@ -36,181 +63,186 @@ Then enable with `/plugins` or add to settings.json:
 }
 ```
 
+</details>
+
 ## Usage
 
-Just say `/super` followed by what you want:
+Just say `/super` followed by what you want. That's the whole interface.
 
 ```
 /super Add authentication to this Express app
 /super What's the best database for our use case?
 /super Make the /api/search endpoint faster
 /super Fix the typo in utils.ts
+/super Audit security across all 5 services
+/super Build a CLI for our internal API
 ```
 
-The skill reads your request, checks complexity, and activates the right capabilities automatically.
-
-### Capabilities
-
-| Capability | Activated When |
-|------------|----------------|
-| **SIMPLE** | Trivial tasks: typos, renames, config changes, one-liners |
-| **PLAN** | Always, for any non-trivial code task (GSD backbone) |
-| **RESEARCH** | Unknowns, comparisons, "which/what/how" |
-| **MAP** | Existing codebase being modified (with incremental caching) |
-| **BUILD** | Creating or modifying code |
-| **EXPERIMENT** | Optimizing, "make faster", comparing |
-| **GENERATE-CLI** | Wrapping APIs or tools |
-| **ORCHESTRATE** | 2+ independent tasks |
-
-### SIMPLE mode
-
-For trivial changes, `/super` skips the full pipeline and just does the work:
+The router analyzes your request and announces what it's activating:
 
 ```
-/super Fix the typo in README.md
+Activating: MAP -> RESEARCH -> PLAN -> BUILD
+- MAP: Existing Express project, need to understand patterns first
+- RESEARCH: Auth has multiple approaches worth comparing (JWT, session, OAuth)
+- PLAN: Will create verified atomic tasks before coding
+- BUILD: Multi-phase implementation with quality gates
+```
+
+## 8 Capabilities
+
+`/super` has 8 capabilities that combine automatically based on your request.
+
+### SIMPLE — Just do it
+
+For trivial, unambiguous changes. Skips the entire pipeline.
+
+```
+/super Rename getUserData to fetchUserData
   -> Activating: SIMPLE (trivial change, skipping full pipeline)
 ```
 
-SIMPLE activates automatically when the task affects 1-2 files, is mechanical (not architectural), has no unknowns, and has no dependencies between changes. Examples: typo fixes, renames, config value changes, toggling flags, adding imports.
+Triggers on: typo fixes, renames, config value changes, toggling flags, adding imports, one-liners with no design decisions.
+
+### PLAN — No code without a verified plan
+
+The backbone. Every non-trivial task goes through **discuss gray areas -> create atomic tasks -> verify coverage -> execute in waves**. Tasks are grouped into dependency waves and executed with fresh agent contexts. Each completed task produces an atomic git commit.
+
+### RESEARCH — Expert-grade investigation
+
+Dispatches 4 parallel researchers (Stack, Architecture, Features, Pitfalls) that investigate your problem domain like senior engineers would. Produces confidence-tagged findings (`[HIGH]`/`[MEDIUM]`/`[LOW]`), a "don't hand-roll" list of things to use off-the-shelf, and a validation architecture for verifying the implementation.
+
+### MAP — Understand before modifying
+
+4 parallel agents analyze your existing codebase across tech stack, architecture patterns, code quality, and concerns. Results are **cached with git SHA tracking** — subsequent runs only re-map what actually changed, saving significant time.
+
+### BUILD — Multi-phase pipeline with quality gates
+
+7 phases: Analyze, Design, Implement, Test, Refine, Document, Deliver. Three layers of quality monitoring (task, integration, goal). Each phase has a gate that must pass before proceeding.
+
+### EXPERIMENT — Scientific iteration
+
+Measures a baseline, forms hypotheses, implements changes, measures again, keeps or discards. One variable at a time. **Results persist across sessions** — come back tomorrow and it picks up at Experiment #4 instead of re-measuring the baseline.
+
+### GENERATE-CLI — Schema-driven tool creation
+
+Reads your API schema (OpenAPI, GraphQL, Discovery docs) or source code and generates a complete CLI with `--help`, `--json` output, and consistent exit codes.
+
+### ORCHESTRATE — Parallel fan-out
+
+For 2+ independent tasks. Decomposes the work, dispatches one agent per task (each with its own MAP/PLAN/BUILD internally), collects results, and synthesizes.
+
+## Advanced features
 
 ### Capability overrides
 
-Force capabilities on or off with `+`/`-` flags:
+Override the router's decisions with `+`/`-` flags:
 
 ```
-/super +research "add caching to the API"     # Force research even if router wouldn't
-/super -map "add a utility function"           # Skip mapping, you know the codebase
+/super +research "add caching to the API"     # Force research on
+/super -map "add a utility function"           # Skip mapping
 /super +experiment -research "try inlining"    # Force experiment, skip research
-/super +simple "just add the import"           # Force simple mode for borderline tasks
+/super +simple "just add the import"           # Force simple mode
 ```
 
-**Rules:**
-- Overrides are parsed before routing and always win over the router's judgment
-- Valid names: `simple`, `plan`, `research`, `map`, `build`, `experiment`, `generate-cli`, `orchestrate`
-- Multiple overrides can be combined in one invocation
-
-### Incremental map caching
-
-MAP results are cached in `.super/` with the git SHA at the time of mapping. On subsequent runs, `/super` checks what changed since the last map:
-
-| What changed | What happens |
-|---|---|
-| Nothing (0 files) | MAP skipped entirely, cached maps reused |
-| <10 files, no new deps | Partial MAP — only affected agents re-run |
-| >10 files or new deps/config | Full MAP (all 4 agents) |
-| Maps older than 7 days | Full MAP regardless of diff |
-
-This saves significant time on repeated `/super` invocations in the same project.
-
-### Cleanup
-
-Remove stale `.super/` artifacts when you're done with a task:
-
-```
-/super clean
-```
-
-Shows a summary of what's in `.super/` (artifact count, size, age), then asks whether to **archive** (backup to `.super.bak.<timestamp>/`) or **delete**. If your `.super/` directory is >30 days old, `/super` will proactively suggest cleanup on next invocation.
+Overrides always win over the router's judgment. Combine as many as you need.
 
 ### Dry run
 
-Preview which capabilities would activate without executing anything:
+Preview routing decisions without executing:
 
 ```
 /super --dry-run "add caching to the API"
 ```
 
-Shows each capability with yes/no, the activation order, map cache status, and suggests useful overrides. No artifacts are written.
+Shows each capability with yes/no, the activation order, map cache status, and suggests useful overrides. Nothing is written.
+
+### Cleanup
+
+```
+/super clean
+```
+
+Shows what's in `.super/` and lets you archive or delete it. Proactively suggests cleanup when artifacts are >30 days old.
 
 ### Progress updates
 
-During long-running capabilities, `/super` emits structured single-line status updates:
+Structured single-line status updates during long-running work:
 
 ```
 [RESEARCH 2/4] Architecture researcher complete — recommends event-driven pattern
 [MAP skip] Reusing cached maps (0 files changed since abc123)
 [BUILD 3/7] Implement phase complete — 4 files written, compiles clean
 [EXPERIMENT 2/5] Hypothesis "inline queries" — 15% faster, keeping
+[ORCHESTRATE 3/5] Service-C audit complete, 2 findings
 ```
 
-### Experiment continuity
+## How it works under the hood
 
-Experiments persist across sessions. If you run `/super` to optimize something, leave, and come back later, it picks up where you left off — reusing the baseline (if the code hasn't changed), continuing the experiment numbering, and avoiding hypotheses that were already discarded.
+### Enforcement hooks
 
-## Enforcement Hooks
+Two hooks run automatically to keep the workflow honest:
 
-The plugin registers two hooks automatically:
+- **super-plan-guard** (PreToolUse) — Warns if source code is being edited without a plan. Suppressed in SIMPLE mode.
+- **super-research-tracker** (PostToolUse) — Tracks every artifact write, updates session state, validates that research has confidence tags, plans have verification criteria, and experiments have baselines.
 
-- **super-plan-guard** (PreToolUse): Warns if editing source code without a plan. Automatically suppressed in SIMPLE mode.
-- **super-research-tracker** (PostToolUse): Tracks artifacts to `.super/`, validates quality, records git SHA for map staleness detection.
+### Artifact persistence
 
-## Artifacts
-
-All work persists to `.super/` in your project directory:
+All work lives in `.super/` in your project directory:
 
 ```
 .super/
-  state.json          # Session state, map cache metadata, capabilities log
+  state.json          # Session state, map cache, experiment tracking
   research.md         # Research findings with confidence tags
-  plan.md             # Verified atomic tasks with waves
-  experiments.md      # Hypothesis log with results
-  map-*.md            # Codebase analysis (tech, architecture, quality, concerns)
+  plan.md             # Verified atomic tasks with dependency waves
+  experiments.md      # Full experiment journal across sessions
+  map-tech.md         # Stack analysis
+  map-architecture.md # Architecture patterns
+  map-quality.md      # Test coverage, CI/CD, conventions
+  map-concerns.md     # Tech debt, security, performance
 ```
 
-### state.json schema
+This survives context resets. When `/super` is invoked, it reads `state.json` and resumes from where the previous session left off — skipping capabilities whose artifacts are still fresh.
 
-```json
-{
-  "session_start": "2026-03-28T...",
-  "last_updated": "2026-03-28T...",
-  "capabilities_activated": ["MAP", "PLAN", "BUILD"],
-  "simple_mode": false,
-  "artifacts": {
-    "map-tech.md": { "written": "...", "size_bytes": 1234 },
-    "plan.md": { "written": "...", "size_bytes": 5678 }
-  },
-  "map_metadata": {
-    "git_sha": "abc123...",
-    "timestamp": "2026-03-28T...",
-    "partial": false,
-    "agents_run": ["tech", "architecture", "quality", "concerns"]
-  },
-  "experiment_metadata": {
-    "experiment_count": 3,
-    "last_updated": "2026-03-28T...",
-    "git_sha": "def456..."
-  }
-}
-```
+### Incremental map caching
 
-## Origin
+Maps are tagged with the git SHA at time of creation. On next run:
 
-Built by combining patterns from:
-- [AutoResearch](https://github.com/karpathy/autoresearch) - autonomous experiment loops
-- [OpenSpace](https://github.com/HKUDS/OpenSpace) - self-evolving strategy
-- [CLI-Anything](https://github.com/HKUDS/CLI-Anything) - multi-phase pipelines
-- [Claude Peers MCP](https://github.com/louislva/claude-peers-mcp) - multi-agent coordination
-- [Google Workspace CLI](https://github.com/googleworkspace/cli) - schema-driven output
-- [GSD](https://github.com/gsd-build/get-shit-done) - context-engineered development
+| What changed since last map | What happens |
+|---|---|
+| Nothing | MAP skipped entirely |
+| <10 files, no new deps | Partial re-map (only affected agents) |
+| >10 files or new deps | Full re-map |
+| Maps >7 days old | Full re-map |
+
+## Built on giants
+
+`/super` combines proven patterns from:
+
+- [GSD](https://github.com/gsd-build/get-shit-done) — Context-engineered development (planning backbone, codebase mapping, research protocol)
+- [AutoResearch](https://github.com/karpathy/autoresearch) — Autonomous experiment loops with scientific rigor
+- [OpenSpace](https://github.com/HKUDS/OpenSpace) — Self-evolving strategy with quality monitoring
+- [CLI-Anything](https://github.com/HKUDS/CLI-Anything) — Multi-phase build pipelines
+- [Claude Peers MCP](https://github.com/louislva/claude-peers-mcp) — Multi-agent coordination
+- [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
 
 ### v1.2.0
 
-- **Cleanup command** — `/super clean` to archive or delete `.super/` artifacts, with proactive staleness suggestions
-- **Dry-run mode** — `/super --dry-run` previews routing decisions without executing
-- **Streaming progress** — Structured `[CAPABILITY N/M]` status lines during long-running work
-- **Experiment continuity** — Baselines, hypotheses, and results persist across sessions; experiments resume instead of restarting
+- **Cleanup command** — `/super clean` to archive or delete `.super/` artifacts
+- **Dry-run mode** — `/super --dry-run` previews routing without executing
+- **Streaming progress** — `[CAPABILITY N/M]` status lines during long-running work
+- **Experiment continuity** — Baselines and results persist across sessions
 
 ### v1.1.0
 
-- **SIMPLE fast path** — Trivial tasks skip the full pipeline (no MAP/RESEARCH/PLAN overhead)
-- **Capability overrides** — `+capability`/`-capability` flags let you force or suppress routing decisions
-- **Incremental map caching** — MAP results cached with git SHA; only re-maps when the codebase actually changed
+- **SIMPLE fast path** — Trivial tasks skip the full pipeline
+- **Capability overrides** — `+`/`-` flags to force or suppress capabilities
+- **Incremental map caching** — Git SHA staleness detection with partial re-mapping
 
 ### v1.0.0
 
-- Initial release with 7 capabilities, autonomous routing, artifact persistence, and enforcement hooks
+- Initial release: 7 capabilities, autonomous routing, artifact persistence, enforcement hooks
 
 ## License
 
