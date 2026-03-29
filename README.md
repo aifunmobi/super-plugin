@@ -25,10 +25,10 @@ Everything is persisted to `.super/` — surviving context resets, session bound
 | Codebase gets re-analyzed every session | **Incremental map caching** — only re-maps what actually changed (git SHA tracking) |
 | You forget which approach you already tried | **Experiment continuity** — baselines, hypotheses, and results persist across sessions |
 | Simple tasks get buried in ceremony | **SIMPLE fast path** — typo fixes and config changes skip the full pipeline |
-| The router picks wrong capabilities | **Capability overrides** — `+research -map` to force exactly what you want |
+| The router picks wrong capabilities | **Options** — `research`, `no-map`, `loops=5` to control exactly what runs |
 | Long tasks feel like a black box | **Streaming progress** — structured status updates at every milestone |
 | You don't know what it's about to do | **Execution plan** — shows exactly what will happen and waits for your OK |
-| Stale artifacts pile up | **Cleanup command** — `/super clean` to archive or remove old work |
+| Stale artifacts pile up | **Cleanup** — `/super clean` to archive or remove old work |
 
 ## Quick start
 
@@ -68,18 +68,16 @@ Then enable with `/plugins` or add to `settings.json`:
 
 ## Usage
 
-Just say `/super` followed by what you want. That's the whole interface.
+Just say `/super` followed by what you want:
 
 ```
 /super Add authentication to this Express app
 /super What's the best database for our use case?
 /super Make the /api/search endpoint faster
 /super Fix the typo in utils.ts
-/super Audit security across all 5 services
-/super Build a CLI for our internal API
 ```
 
-The router analyzes your request, builds an execution plan, and asks you to confirm before starting:
+For non-trivial tasks, `/super` presents an execution plan and waits for your OK:
 
 ```
 /super Execution Plan
@@ -94,7 +92,7 @@ Step-by-step:
 1. MAP — Analyze existing codebase (4 agents: tech, architecture, quality, concerns)
 2. RESEARCH — Investigate auth approaches (JWT, session, OAuth)
 3. PLAN — Create verified atomic tasks with dependency waves
-4. BUILD — Implement through multi-phase pipeline (Analyze → Design → Implement → Test → Refine → Deliver)
+4. BUILD — Implement through multi-phase pipeline
 
 Artifacts will be written to: .super/
 Commits: Atomic per task
@@ -102,7 +100,80 @@ Commits: Atomic per task
 Proceed? [Y/n]
 ```
 
-You review the plan, adjust if needed (`"actually skip research, I know I want JWT"`), and confirm. SIMPLE mode tasks skip this step — they just execute immediately.
+You review, adjust if needed, and confirm. SIMPLE mode tasks skip this — they just execute.
+
+## Syntax
+
+```
+/super [options] <task description>
+```
+
+Options are **plain words** before your task. No `+`, `-`, or `--` — just words.
+
+### Complete option reference
+
+#### Capability controls
+
+Force a capability **on** by name, or **off** with `no-` prefix.
+
+| Option | What it does | Example |
+|---|---|---|
+| `simple` | Force SIMPLE mode — skip all heavyweight capabilities, just do it | `/super simple rename foo to bar across the project` |
+| `no-simple` | Force full routing even if the task looks trivial | `/super no-simple fix the typo in config.ts` |
+| `research` | Force RESEARCH on — 4 parallel investigators (stack, architecture, features, pitfalls) | `/super research add caching to the API` |
+| `no-research` | Skip RESEARCH even if there are unknowns | `/super no-research add OAuth login` |
+| `map` | Force full MAP — re-analyze codebase regardless of cache | `/super map add a new endpoint` |
+| `no-map` | Skip MAP — you already know the codebase | `/super no-map add a utility function` |
+| `plan` | Force PLAN on (it's on by default for code tasks, but this ensures it) | `/super plan investigate the logging issue` |
+| `no-plan` | Skip PLAN — use with caution, no verified tasks before coding | `/super no-plan add the missing import` |
+| `build` | Force BUILD on — multi-phase pipeline with quality gates | `/super build research results into implementation` |
+| `no-build` | Skip BUILD phase | `/super no-build research the best ORM options` |
+| `experiment` | Force EXPERIMENT on — scientific iteration with baseline measurement | `/super experiment add caching and measure impact` |
+| `no-experiment` | Skip EXPERIMENT even if the task mentions optimization | `/super no-experiment make the page load faster` |
+| `orchestrate` | Force ORCHESTRATE — parallel fan-out across independent subtasks | `/super orchestrate lint all 3 services` |
+| `no-orchestrate` | Handle everything sequentially, no parallel agents | `/super no-orchestrate audit the auth and payment services` |
+| `generate-cli` | Force GENERATE-CLI — schema-driven CLI tool creation | `/super generate-cli wrap the billing API` |
+
+#### Loop control
+
+| Option | What it does | Example |
+|---|---|---|
+| `loops=0` | Single pass — no re-research, no plan re-verify, one experiment only | `/super loops=0 build the landing page` |
+| `loops=1` | One iteration allowed per loop type | `/super loops=1 research auth strategies` |
+| `loops=N` | Set all loops to max N iterations (research, plan verify, experiments) | `/super loops=5 experiment optimize the search query` |
+
+**Defaults when `loops=` is not specified:**
+
+| Loop type | Default max | What it controls |
+|---|---|---|
+| Research | 2 | Re-research iterations when gaps >30% |
+| Plan verify | 2 | Revision loops before escalating to user |
+| Experiments | 3 | Hypothesis iterations per session |
+
+All loops auto-stop on **diminishing returns**: if an iteration produces <10% new value, it stops early.
+
+**Safety cap:** `loops=` values over 100 pause at the 100th iteration and ask if you want to continue.
+
+#### Meta-commands
+
+| Option | What it does | Example |
+|---|---|---|
+| `dry` | Preview routing decisions without executing anything | `/super dry add a Redis caching layer` |
+| `clean` | Archive or delete the `.super/` directory | `/super clean` |
+
+#### Combining options
+
+Options compose freely. Put as many as you need before the task:
+
+| Command | What happens |
+|---|---|
+| `/super research loops=5 add caching to the API` | Force research, 5 iterations for all loops |
+| `/super no-map no-research refactor the billing module` | Skip map and research, straight to plan+build |
+| `/super experiment no-map loops=3 optimize search` | Experiment mode, skip mapping, 3 loops |
+| `/super dry research no-map add authentication` | Dry run: show what would happen with research forced on and map off |
+| `/super simple fix the typo in README.md` | Force simple mode, just fix it |
+| `/super loops=0 no-map quick feature add` | No loops, no mapping, single-pass execution |
+| `/super research experiment loops=10 improve API perf` | Full investigation + experiment mode, generous loop budget |
 
 ## 8 Capabilities
 
@@ -110,7 +181,7 @@ You review the plan, adjust if needed (`"actually skip research, I know I want J
 
 ### SIMPLE — Just do it
 
-For trivial, unambiguous changes. Skips the entire pipeline.
+For trivial, unambiguous changes. Skips the entire pipeline and the confirmation gate.
 
 ```
 /super Rename getUserData to fetchUserData
@@ -147,71 +218,7 @@ Reads your API schema (OpenAPI, GraphQL, Discovery docs) or source code and gene
 
 For 2+ independent tasks. Decomposes the work, dispatches one agent per task (each with its own MAP/PLAN/BUILD internally), collects results, and synthesizes.
 
-## Advanced features
-
-### Options
-
-All options are plain words — no `+`, `-`, or `--` to remember. Just put them before your task:
-
-```
-/super research add caching to the API           # Force research on
-/super no-map add a utility function              # Skip mapping
-/super experiment no-research try inlining        # Force experiment, skip research
-/super simple just add the import                 # Force simple mode
-/super no-map no-research refactor billing        # Skip both, go straight to plan+build
-```
-
-To turn a capability **on**, use its name. To turn it **off**, prefix with `no-`.
-
-### Loop control
-
-Control how many iterations research, planning, and experiments run with `loops=N`:
-
-```
-/super loops=1 research the best auth approach    # One-shot, no re-research
-/super loops=5 optimize the search endpoint       # Give experiments more room
-/super loops=0 build the dashboard                # Single pass, no iteration at all
-```
-
-**Defaults without `loops=`:**
-
-| Loop type | Default max |
-|---|---|
-| Research re-research | 2 |
-| Plan verification | 2 |
-| Experiment hypotheses | 3 |
-
-All loops have a **diminishing returns** check: if an iteration produces <10% new value compared to the previous one, it stops early regardless of remaining budget.
-
-**Safety cap:** Values over 100 pause at the 100th iteration and ask if you want to continue.
-
-Combine freely:
-
-```
-/super experiment loops=5 make the API faster     # 5 experiment iterations, forced on
-/super loops=0 no-map quick feature add           # No loops, no mapping
-/super research no-map loops=3 add auth           # Research on, map off, 3 loops
-```
-
-### Dry run
-
-Preview routing decisions without executing:
-
-```
-/super dry add caching to the API
-```
-
-Shows each capability with yes/no, the activation order, map cache status, and suggests useful options. Nothing is written.
-
-### Cleanup
-
-```
-/super clean
-```
-
-Shows what's in `.super/` and lets you archive or delete it. Proactively suggests cleanup when artifacts are >30 days old.
-
-### Progress updates
+## Progress updates
 
 Structured single-line status updates during long-running work:
 
@@ -278,30 +285,16 @@ Maps are tagged with the git SHA at time of creation. On next run:
 ### v1.5.0
 
 - **Simplified syntax** — All options are plain words (`research`, `no-map`, `loops=5`, `dry`, `clean`). No `+`, `-`, or `--` prefixes.
-
-### v1.4.0
-
-- **Execution plan & confirmation** — After routing, presents a step-by-step summary of what will happen and waits for user approval before starting. SIMPLE mode skips this.
-
-### v1.3.0
-
-- **Loop control** — `--loops N` flag to control iteration limits across research, planning, and experiments
-- **Reduced defaults** — Research: 3→2, Plan verify: 3→2, Experiments: 5→3 (less waste, earlier escalation)
-- **Diminishing returns** — All loops auto-stop when an iteration produces <10% new value
-- **Safety cap** — Loops >100 pause and ask user to confirm before continuing
-
-### v1.2.0
-
-- **Cleanup command** — `/super clean` to archive or delete `.super/` artifacts
-- **Dry-run mode** — `/super --dry-run` previews routing without executing
-- **Streaming progress** — `[CAPABILITY N/M]` status lines during long-running work
-- **Experiment continuity** — Baselines and results persist across sessions
-
-### v1.1.0
-
-- **SIMPLE fast path** — Trivial tasks skip the full pipeline
-- **Capability overrides** — `+`/`-` flags to force or suppress capabilities
-- **Incremental map caching** — Git SHA staleness detection with partial re-mapping
+- **Execution plan & confirmation** — Shows step-by-step plan and waits for user OK before starting.
+- **Loop control** — `loops=N` to set iteration limits. Defaults: research 2, plan verify 2, experiments 3.
+- **Diminishing returns** — All loops auto-stop when <10% new value per iteration.
+- **Safety cap** — `loops=` over 100 pauses and asks to confirm.
+- **SIMPLE fast path** — Trivial tasks skip the full pipeline and confirmation gate.
+- **Incremental map caching** — Git SHA staleness detection with partial re-mapping.
+- **Experiment continuity** — Baselines and results persist across sessions.
+- **Cleanup** — `/super clean` to archive or delete `.super/` artifacts.
+- **Dry run** — `/super dry` previews routing without executing.
+- **Streaming progress** — `[CAPABILITY N/M]` status lines during long-running work.
 
 ### v1.0.0
 
