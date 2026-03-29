@@ -49,9 +49,14 @@ VERSION=$(node -p "require('$PLUGIN_DIR/.claude-plugin/plugin.json').version" 2>
 # Create target directories
 mkdir -p "$SKILLS_DIR" "$HOOKS_DIR"
 
-# Symlink skill (single source of truth — always reads from the git repo)
+# Symlink skills (single source of truth — always reads from the git repo)
 ln -sf "$PLUGIN_DIR/skills/super/SKILL.md" "$SKILLS_DIR/SKILL.md"
-echo "  Linked skill -> $SKILLS_DIR/SKILL.md -> repo"
+echo "  Linked /super skill -> $SKILLS_DIR/SKILL.md -> repo"
+
+REFRESH_DIR="$CLAUDE_DIR/skills/refresh"
+mkdir -p "$REFRESH_DIR"
+ln -sf "$PLUGIN_DIR/skills/refresh/SKILL.md" "$REFRESH_DIR/SKILL.md"
+echo "  Linked /refresh skill -> $REFRESH_DIR/SKILL.md -> repo"
 
 # Symlink hooks
 ln -sf "$PLUGIN_DIR/hooks/super-plan-guard.js" "$HOOKS_DIR/super-plan-guard.js"
@@ -145,12 +150,16 @@ echo ""
 echo "  Done! v$VERSION installed."
 echo ""
 echo "  Files (symlinked to repo — git pull to update):"
-echo "    ~/.claude/skills/super/SKILL.md"
+echo "    ~/.claude/skills/super/SKILL.md       (/super)"
+echo "    ~/.claude/skills/refresh/SKILL.md     (/refresh)"
 echo "    ~/.claude/hooks/super-plan-guard.js"
 echo "    ~/.claude/hooks/super-research-tracker.js"
 echo "    ~/.claude/settings.json (hooks registered)"
 echo ""
-echo "  To update later:  cd $PLUGIN_DIR && git pull"
+echo "  Commands:"
+echo "    /super             — autonomous task engine"
+echo "    /super update      — self-update from GitHub"
+echo "    /refresh           — publish plugin changes (test, bump, commit, push)"
 echo ""
 echo "  Restart Claude Code, then try:"
 echo "    /super dry build a todo app"

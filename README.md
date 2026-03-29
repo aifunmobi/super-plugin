@@ -77,6 +77,27 @@ From inside Claude Code:
 
 Checks GitHub for a newer version, shows what changed, and updates in place. No re-install needed.
 
+### For developers: /refresh
+
+If you're modifying the /super plugin itself, `/refresh` automates the full publish workflow:
+
+```
+/refresh          # auto-detect version bump, test, commit, push
+/refresh minor    # force minor version bump
+/refresh 2.0.0    # force specific version
+/refresh --dry    # preview what would happen
+```
+
+What it does (in order):
+1. Runs the full test suite (39 tests) — stops if any fail
+2. Determines version bump from changes (or uses your override)
+3. Updates `plugin.json` with new version
+4. Adds a changelog entry to `README.md`
+5. Verifies symlinks (recreates if broken)
+6. Commits with conventional commit message
+7. Pushes to GitHub
+8. Verifies everything is live and reports results
+
 ## Usage
 
 Just say `/super` followed by what you want:
@@ -307,6 +328,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v1.8.0
+
+- **`/refresh` skill** — One-command publish workflow: runs 39 tests, bumps version, updates changelog, verifies symlinks, commits, and pushes. Supports `patch`/`minor`/`major`/explicit version overrides and `--dry` preview.
 
 ### v1.7.0
 
