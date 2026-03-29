@@ -5,8 +5,8 @@
 set -e
 
 REPO="https://github.com/aifunmobi/super-plugin.git"
-TMP_DIR=$(mktemp -d)
 CLAUDE_DIR="$HOME/.claude"
+PLUGIN_DIR="$CLAUDE_DIR/plugins/marketplaces/local/plugins/super"
 SKILLS_DIR="$CLAUDE_DIR/skills/super"
 HOOKS_DIR="$CLAUDE_DIR/hooks"
 SETTINGS="$CLAUDE_DIR/settings.json"
@@ -18,31 +18,39 @@ echo ""
 echo "  Installing /super plugin for Claude Code..."
 echo ""
 
-# Clone repo
-git clone --quiet "$REPO" "$TMP_DIR/super-plugin"
+# Clone or update the repo to the permanent plugin directory
+if [ -d "$PLUGIN_DIR/.git" ]; then
+  echo "  Existing installation found — pulling latest..."
+  git -C "$PLUGIN_DIR" pull --ff-only --quiet
+else
+  mkdir -p "$(dirname "$PLUGIN_DIR")"
+  if [ -d "$PLUGIN_DIR" ]; then
+    echo "  Backing up existing $PLUGIN_DIR..."
+    mv "$PLUGIN_DIR" "${PLUGIN_DIR}.bak.$(date +%s)"
+  fi
+  git clone --quiet "$REPO" "$PLUGIN_DIR"
+fi
 
 # Read version
-VERSION=$(node -p "require('$TMP_DIR/super-plugin/.claude-plugin/plugin.json').version" 2>/dev/null || echo "unknown")
+VERSION=$(node -p "require('$PLUGIN_DIR/.claude-plugin/plugin.json').version" 2>/dev/null || echo "unknown")
 
-# Create directories
+# Create target directories
 mkdir -p "$SKILLS_DIR" "$HOOKS_DIR"
 
-# Copy skill
-cp "$TMP_DIR/super-plugin/skills/super/SKILL.md" "$SKILLS_DIR/SKILL.md"
-echo "  Installed skill -> $SKILLS_DIR/SKILL.md"
+# Symlink skill (single source of truth — always reads from the git repo)
+ln -sf "$PLUGIN_DIR/skills/super/SKILL.md" "$SKILLS_DIR/SKILL.md"
+echo "  Linked skill -> $SKILLS_DIR/SKILL.md -> repo"
 
-# Copy hooks
-cp "$TMP_DIR/super-plugin/hooks/super-plan-guard.js" "$HOOKS_DIR/"
-cp "$TMP_DIR/super-plugin/hooks/super-research-tracker.js" "$HOOKS_DIR/"
-echo "  Installed hooks -> $HOOKS_DIR/"
+# Symlink hooks
+ln -sf "$PLUGIN_DIR/hooks/super-plan-guard.js" "$HOOKS_DIR/super-plan-guard.js"
+ln -sf "$PLUGIN_DIR/hooks/super-research-tracker.js" "$HOOKS_DIR/super-research-tracker.js"
+echo "  Linked hooks -> $HOOKS_DIR/ -> repo"
 
 # Patch settings.json to register hooks
 if [ -f "$SETTINGS" ]; then
-  # Check if hooks are already registered
   if grep -q "super-plan-guard" "$SETTINGS" 2>/dev/null; then
     echo "  Hooks already registered in settings.json"
   else
-    # Use node to safely patch JSON
     node -e "
 const fs = require('fs');
 const settings = JSON.parse(fs.readFileSync('$SETTINGS', 'utf8'));
@@ -121,17 +129,16 @@ SETTINGSEOF
   echo "  Created settings.json with hooks"
 fi
 
-# Cleanup
-rm -rf "$TMP_DIR"
-
 echo ""
 echo "  Done! v$VERSION installed."
 echo ""
-echo "  Files:"
+echo "  Files (symlinked to repo — git pull to update):"
 echo "    ~/.claude/skills/super/SKILL.md"
 echo "    ~/.claude/hooks/super-plan-guard.js"
 echo "    ~/.claude/hooks/super-research-tracker.js"
 echo "    ~/.claude/settings.json (hooks registered)"
+echo ""
+echo "  To update later:  cd $PLUGIN_DIR && git pull"
 echo ""
 echo "  Restart Claude Code, then try:"
 echo "    /super dry build a todo app"
