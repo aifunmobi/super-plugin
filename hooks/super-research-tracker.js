@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// super-hook-version: 1.0.0
+// super-hook-version: 1.1.0
 // /super Research & Artifact Tracker — PostToolUse hook
 //
 // Monitors .super/ artifact writes and tracks workflow state.
@@ -16,11 +16,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const ARTIFACTS = {
   'research.md': { required: ['[HIGH]', '[MEDIUM]', '[LOW]'], label: 'confidence tags' },
   'plan.md': { required: ['Verify:', 'Dependencies:'], label: 'verification criteria and dependencies' },
-  'experiments.md': { required: ['Baseline', 'Hypothesis'], label: 'baseline and hypothesis' },
+  'experiments.md': { required: ['Baseline', 'Hypothesis', 'Current Best'], label: 'baseline, hypothesis, and current best tracking' },
   'map.md': { required: [], label: null },
   'map-tech.md': { required: [], label: null },
   'map-architecture.md': { required: [], label: null },
@@ -90,6 +91,46 @@ process.stdin.on('end', () => {
     if (fileName === 'experiments.md') caps.add('EXPERIMENT');
     if (fileName.startsWith('map')) caps.add('MAP');
     state.capabilities_activated = [...caps];
+
+    // Track experiment metadata for cross-session continuity
+    if (fileName === 'experiments.md') {
+      const content = data.tool_input?.content || '';
+      if (!state.experiment_metadata) {
+        state.experiment_metadata = {};
+      }
+      // Count experiments by counting "### Experiment #" headers
+      const experimentCount = (content.match(/### Experiment #\d+/g) || []).length;
+      state.experiment_metadata.experiment_count = experimentCount;
+      state.experiment_metadata.last_updated = new Date().toISOString();
+      // Track git SHA for baseline staleness
+      try {
+        state.experiment_metadata.git_sha = execSync('git rev-parse HEAD', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
+      } catch {
+        // Not a git repo
+      }
+    }
+
+    // Track git SHA for map staleness detection
+    if (fileName.startsWith('map')) {
+      try {
+        const gitSha = execSync('git rev-parse HEAD', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
+        if (!state.map_metadata) {
+          state.map_metadata = {};
+        }
+        state.map_metadata.git_sha = gitSha;
+        state.map_metadata.timestamp = new Date().toISOString();
+        // Track which agents ran
+        const agentName = fileName.replace('map-', '').replace('.md', '');
+        if (!state.map_metadata.agents_run) {
+          state.map_metadata.agents_run = [];
+        }
+        if (!state.map_metadata.agents_run.includes(agentName)) {
+          state.map_metadata.agents_run.push(agentName);
+        }
+      } catch {
+        // Not a git repo or git not available — skip SHA tracking
+      }
+    }
 
     fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
 

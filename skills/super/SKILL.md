@@ -1,11 +1,58 @@
 ---
 name: super
-description: Use when tackling any ambitious, multi-step, or non-trivial task - autonomously classifies the work and activates the right combination of research, planning, building, experimentation, orchestration, and codebase mapping sub-skills without requiring explicit sub-commands
+description: Use when tackling any task from trivial to ambitious - autonomously classifies complexity, supports +/- capability overrides, caches map results incrementally, and activates the right combination of research, planning, building, experimentation, orchestration, and codebase mapping sub-skills without requiring explicit sub-commands
 ---
 
 # Super - Autonomous Task Engine
 
 When `/super` is invoked (or this skill activates), **do not ask which sub-command to use.** Analyze the user's request and autonomously activate the right combination of capabilities. The GSD planning backbone (discuss -> plan -> verify) is always active for any task that involves writing code or making changes.
+
+## Meta-Commands
+
+These are recognized before routing. They control the `/super` session itself rather than performing a task.
+
+### `/super clean`
+
+Archives or removes the `.super/` directory for the current project.
+
+**Behavior:**
+1. If `.super/` doesn't exist, say so and exit
+2. Show a summary of what's in `.super/` (artifact count, total size, age)
+3. Ask the user to confirm: **archive** (move to `.super.bak.<timestamp>/`) or **delete** (remove entirely)
+4. Execute the chosen action
+5. If archiving, mention the backup path so the user can recover if needed
+
+**Auto-clean:** If `.super/state.json` shows all capabilities completed and the last update was >30 days ago, suggest cleanup proactively when `/super` is next invoked.
+
+### `/super --dry-run <task>`
+
+Shows which capabilities the router would activate — without executing anything.
+
+**Output format:**
+```
+Dry run: "Add caching to the API"
+
+Router decision:
+  SIMPLE:       no  (task involves architectural decisions)
+  MAP:          yes (existing codebase detected)
+  RESEARCH:     no  (no unknowns — caching approach is well-known)
+  PLAN:         yes (always on for code tasks)
+  BUILD:        yes (creating/modifying code)
+  EXPERIMENT:   no  (not optimizing)
+  GENERATE-CLI: no  (not wrapping an API)
+  ORCHESTRATE:  no  (single task)
+
+Activation order: MAP -> PLAN -> BUILD
+
+Map cache: fresh (2 files changed since last map, partial re-map of Tech only)
+
+Override suggestion: Use +research if you want to compare caching strategies first
+```
+
+**Rules:**
+- No artifacts are written, no `.super/` directory is created
+- If `+`/`-` overrides are included, show the router's base decision AND the final decision after overrides
+- Include map cache status if `.super/state.json` exists
 
 ## Autonomous Router
 
@@ -15,9 +62,15 @@ digraph router {
   node [shape=box];
 
   "User request arrives" [shape=ellipse];
+  "Parse overrides" [shape=box];
+  "Complexity check" [shape=diamond];
   "Classify task signals" [shape=diamond];
 
-  "User request arrives" -> "Classify task signals";
+  "User request arrives" -> "Parse overrides";
+  "Parse overrides" -> "Complexity check";
+
+  "Complexity check" -> "SIMPLE (just do it)" [label="trivial"];
+  "Complexity check" -> "Classify task signals" [label="non-trivial"];
 
   "Classify task signals" -> "PLAN (always for code tasks)";
   "Classify task signals" -> "RESEARCH (if unknowns exist)";
@@ -29,9 +82,64 @@ digraph router {
 }
 ```
 
-### Classification Rules
+### Step 0: Parse Capability Overrides
 
-Read the user's request and activate capabilities based on these signals. **Multiple capabilities activate together** -- this is not pick-one.
+Before classifying, check if the user included `+capability` or `-capability` flags in their request. These override the router's decisions.
+
+**Syntax:** `/super [+cap ...] [-cap ...] "task description"`
+
+| Flag | Effect |
+|------|--------|
+| `+research` | Force RESEARCH on, even if the router wouldn't activate it |
+| `-map` | Force MAP off, even if the router would activate it |
+| `+experiment -research` | Force EXPERIMENT on, force RESEARCH off |
+| `+simple` | Force SIMPLE mode (skip all heavyweight capabilities) |
+| `-simple` | Force full routing even for trivial-looking tasks |
+
+**Rules:**
+1. Parse all `+`/`-` prefixed words (case-insensitive) before the task description
+2. Valid capability names: `simple`, `plan`, `research`, `map`, `build`, `experiment`, `generate-cli`, `orchestrate`
+3. Invalid names are ignored with a warning to the user
+4. User overrides are applied AFTER the router classifies the task — they always win
+5. Announce overrides: `"User override: +research, -map"`
+
+### Step 1: Complexity Check (SIMPLE Fast Path)
+
+Before full classification, check if the task is trivial. **SIMPLE mode skips PLAN, RESEARCH, and MAP entirely** — just do the work and commit.
+
+**SIMPLE activates when ALL of these are true:**
+- Task affects 1-2 files at most
+- Change is mechanical, not architectural (no design decisions)
+- No unknowns — the user stated exactly what to do
+- No dependencies between changes
+
+**SIMPLE signal words/patterns:**
+- "fix typo", "rename X to Y", "change X to Y", "update version", "remove unused"
+- "s/old/new/", regex-style substitution requests
+- Single-line or few-line changes with no ambiguity
+- Config value changes ("set timeout to 30s", "change port to 8080")
+- Import/dependency additions ("add lodash", "install X")
+- Toggling flags, booleans, feature switches
+
+**SIMPLE does NOT activate when:**
+- The task says "refactor", "redesign", "migrate", "add feature"
+- Multiple files need coordinated changes
+- The user asks a question ("should we...", "what's the best...")
+- There are unknowns or alternatives to evaluate
+- The change touches tests, CI, or infrastructure
+
+**When SIMPLE is active:**
+1. Skip MAP, RESEARCH, PLAN — go straight to execution
+2. The plan guard hook is suppressed (no warning for missing plan.md)
+3. Make the change directly
+4. Commit: `fix(super-simple): description`
+5. Write a one-line entry to `.super/state.json` logging the simple task
+
+**Announce:** `Activating: SIMPLE (trivial change, skipping full pipeline)`
+
+### Step 2: Classification Rules
+
+Read the user's request and activate capabilities based on these signals. **Multiple capabilities activate together** -- this is not pick-one. Apply any user overrides from Step 0 after classification.
 
 | Signal in the request | Activates | Why |
 |----------------------|-----------|-----|
@@ -47,6 +155,9 @@ Read the user's request and activate capabilities based on these signals. **Mult
 
 | User says | What activates | Flow |
 |-----------|---------------|------|
+| "Fix the typo in README.md" | **SIMPLE** | Direct fix, no pipeline |
+| "Rename getUserData to fetchUserData" | **SIMPLE** | Direct rename, commit |
+| "Change the timeout from 30s to 60s" | **SIMPLE** | Direct config change |
 | "Add user authentication to this app" | MAP -> PLAN -> BUILD | Map codebase, plan with gray-area discussion, build through phases |
 | "What's the best database for our use case?" | RESEARCH | Iterative research with parallel agents |
 | "Build a notification system" | MAP -> RESEARCH -> PLAN -> BUILD | Map existing code, research approaches, plan, then build |
@@ -55,24 +166,35 @@ Read the user's request and activate capabilities based on these signals. **Mult
 | "Create a CLI for our internal API" | PLAN -> GENERATE-CLI | Plan the interface, then generate it |
 | "Refactor the billing module to use events" | MAP -> RESEARCH -> PLAN -> BUILD | Full pipeline: understand, research patterns, plan, execute |
 | "Compare CRDT vs OT for our editor" | RESEARCH -> PLAN | Research both, then plan the chosen approach |
+| `/super +research "add caching"` | MAP -> RESEARCH -> PLAN -> BUILD | User forced RESEARCH even though router might skip it |
+| `/super -map "add a util function"` | PLAN -> BUILD | User suppressed MAP — knows the codebase already |
+| `/super +simple "add the import"` | **SIMPLE** | User forced simple mode for a borderline task |
 
 ### When in doubt
 
-- If the task changes code: **PLAN is always on.** No code without a verified plan.
-- If there's an existing codebase: **MAP first** (unless already mapped this session).
+- If the task is trivial and unambiguous: **SIMPLE** — just do it.
+- If the task changes code and isn't trivial: **PLAN is always on.** No code without a verified plan.
+- If there's an existing codebase: **MAP first** (unless already mapped this session or maps are fresh).
 - If you're unsure about the right approach: **RESEARCH before PLAN.**
 - If there are independent subtasks: **ORCHESTRATE** wraps the other capabilities.
+- If the user provided `+`/`-` overrides: **those always win** over the router's judgment.
 
 ### Announce what you're activating
 
-Before starting work, briefly tell the user which capabilities you're activating and why:
+Before starting work, briefly tell the user which capabilities you're activating and why. Include any user overrides.
 
 ```
 Activating: MAP -> RESEARCH -> PLAN -> BUILD
+User override: +research (forced on)
 - MAP: This is an existing Next.js project, need to understand patterns first
-- RESEARCH: Event-driven architecture has multiple approaches worth comparing
+- RESEARCH: Event-driven architecture has multiple approaches worth comparing (user requested)
 - PLAN: Will create verified atomic tasks before coding
 - BUILD: Multi-phase implementation with quality gates
+```
+
+For simple tasks:
+```
+Activating: SIMPLE (trivial change, skipping full pipeline)
 ```
 
 ---
@@ -85,7 +207,7 @@ All `/super` work is persisted to a `.super/` directory in the working directory
 
 ```
 .super/
-  state.json          # Auto-maintained by hook: capabilities activated, artifact timestamps
+  state.json          # Auto-maintained: capabilities, timestamps, map cache metadata, simple log
   research.md         # RESEARCH output: stack, architecture, features, pitfalls, don't-hand-roll
   plan.md             # PLAN output: atomic tasks with waves, verification criteria, dependencies
   experiments.md      # EXPERIMENT output: baseline, hypothesis log, results table
@@ -106,8 +228,9 @@ All `/super` work is persisted to a `.super/` directory in the working directory
 
 When `/super` activates, check for existing `.super/` directory:
 1. If `state.json` exists, read it to understand what was already done
-2. Skip capabilities whose artifacts already exist (e.g., don't re-MAP if `map-tech.md` exists)
-3. Resume from where the previous session left off
+2. For MAP artifacts, run staleness detection (see MAP section) — don't blindly reuse stale maps
+3. Skip other capabilities whose artifacts already exist (e.g., don't re-RESEARCH if `research.md` exists and the task hasn't changed)
+4. Resume from where the previous session left off
 
 ### Enforcement Hooks (registered in settings.json)
 
@@ -323,11 +446,53 @@ Research findings become input context for planning. Locked decisions carry forw
 
 **From: GSD (parallel codebase mappers)**
 
-Activated when working in an existing codebase. Skip if already mapped this session.
+Activated when working in an existing codebase. Uses incremental caching to avoid redundant re-mapping.
+
+### Staleness Detection (Incremental Map Reuse)
+
+Before dispatching map agents, check if cached maps can be reused:
+
+1. **Read `.super/state.json`** — check `map_metadata.git_sha` and `map_metadata.timestamp`
+2. **Run `git diff --stat <cached_sha>..HEAD`** to see what changed since last map
+3. **Apply staleness rules:**
+
+| Condition | Action |
+|-----------|--------|
+| No cached maps exist | Full MAP (all 4 agents) |
+| Cached maps exist, 0 files changed since cached SHA | **Skip MAP entirely** — reuse cached artifacts |
+| Cached maps exist, <10 files changed, no new dependencies | **Partial MAP** — only re-run agents whose domain was affected (see domain rules below) |
+| Cached maps exist, >10 files changed OR new deps/config | Full MAP (all 4 agents) — too much changed |
+| Cached maps >7 days old | Full MAP regardless of diff — staleness ceiling |
+| User passed `+map` override | Full MAP regardless of cache |
+| User passed `-map` override | Skip MAP regardless of cache |
+
+**Domain-to-file mapping for partial MAP:**
+
+| Changed files match | Re-run agent |
+|--------------------|--------------|
+| `package.json`, `*.lock`, dependency configs | **Tech** |
+| New directories, moved files, new entry points | **Architecture** |
+| Test files, CI config, lint config | **Quality** |
+| Security-sensitive files, perf-critical paths | **Concerns** |
+
+4. **After mapping, update `state.json`:**
+```json
+{
+  "map_metadata": {
+    "git_sha": "<current HEAD sha>",
+    "timestamp": "<ISO timestamp>",
+    "partial": false,
+    "agents_run": ["tech", "architecture", "quality", "concerns"]
+  }
+}
+```
+
+**Announce reuse:** `"MAP: Reusing cached maps (3 files changed since last map, none affect architecture)"`
+**Announce partial:** `"MAP: Re-running Tech agent only (package.json changed, other maps still fresh)"`
 
 ### Protocol
 
-Dispatch 4 parallel agents:
+Dispatch up to 4 parallel agents (or fewer for partial MAP):
 
 | Agent | Focus |
 |-------|-------|
@@ -380,20 +545,70 @@ After testing, run gap analysis: what was requested but not built? What edge cas
 
 Activated when optimizing, comparing approaches, or tuning performance.
 
+### Session Continuity
+
+Experiments persist across sessions via `.super/experiments.md`. When EXPERIMENT activates:
+
+1. **Check for existing `.super/experiments.md`** — if it exists, read it first
+2. **Load prior state:**
+   - Last baseline measurement and how it was taken (command, metric, environment)
+   - All previous hypotheses with their outcomes (kept/discarded/reset)
+   - Current best result and which experiment produced it
+   - Strategy evolution notes from prior sessions
+3. **Resume, don't restart:**
+   - If a baseline already exists and the code hasn't changed since, **reuse it** — don't re-measure
+   - If prior experiments were discarded, don't re-try the same hypothesis unless conditions changed
+   - Number experiments sequentially across sessions (e.g., if last session ended at Experiment #3, start at #4)
+4. **Detect stale baselines:** If `git diff` shows changes to the measured code since the last baseline timestamp, re-measure the baseline before continuing
+
+### experiments.md Format
+
+```markdown
+## Experiment Log: <optimization target>
+
+### Baseline
+- **Measured:** <timestamp>
+- **Git SHA:** <sha>
+- **Command:** `<how the measurement was taken>`
+- **Result:** <metric value>
+- **Environment:** <relevant env details>
+
+### Experiment #1 — <hypothesis name>
+- **Hypothesis:** <what we expect and why>
+- **Implemented:** <timestamp> (commit <sha>)
+- **Result:** <metric value> (<% change from baseline>)
+- **Decision:** kept | discarded | reset
+- **Notes:** <what we learned>
+
+### Experiment #2 — ...
+
+### Current Best
+- **Result:** <best metric value>
+- **From:** Experiment #<N>
+- **Improvement over baseline:** <% or absolute>
+
+### Strategy Notes
+- <what approaches have been tried>
+- <what to try next>
+- <dead ends to avoid>
+```
+
 ### Protocol
 
-1. **Baseline** - Measure current state
-2. **Hypothesize** - State expected change and why
+1. **Baseline** - Measure current state (or reuse existing if fresh)
+2. **Hypothesize** - State expected change and why (check prior experiments to avoid repeats)
 3. **Implement** - Make the change (git commit)
 4. **Measure** - Same evaluation as baseline
 5. **Decide**: Better = keep. Worse = reset. Crashed = reset + adjust.
-6. **Loop** - Max 5 experiments before reassessing strategy
+6. **Loop** - Max 5 experiments per session before reassessing strategy
 
 ### Constraints
 
 - One hypothesis per experiment (never bundle)
 - Simpler wins when results are comparable
 - Track all attempts in a results log (including discarded ones)
+- Never re-test a hypothesis that was already discarded unless conditions explicitly changed
+- Always update `.super/experiments.md` after each experiment — this is the cross-session journal
 
 ---
 
@@ -432,6 +647,47 @@ Activated when there are 2+ independent tasks. Wraps other capabilities -- each 
 3. **Collect** - Gather structured results
 4. **Synthesize** - Deduplicate, resolve conflicts, identify gaps, score confidence
 5. **Retry** - Failed agents get one retry with adjusted prompt; then report partial results
+
+---
+
+## Progress Updates (Streaming Status)
+
+During long-running capabilities, emit structured progress updates so the user knows what's happening. These are short, inline status lines — not full reports.
+
+### When to emit
+
+Emit a progress line at each of these milestones:
+
+| Capability | Milestones |
+|------------|-----------|
+| **RESEARCH** | After each of the 4 parallel agents completes; after synthesis; after each re-research loop |
+| **MAP** | After staleness check result; after each agent completes (or is skipped); after merge |
+| **PLAN** | After gray areas surfaced; after plan draft; after each verify loop; after user approval |
+| **BUILD** | After each phase gate (Analyze, Design, Implement, Test, Refine, Deliver) |
+| **EXPERIMENT** | After baseline; after each hypothesis result (keep/discard/reset) |
+| **ORCHESTRATE** | After decomposition; after each agent completes; after synthesis |
+
+### Format
+
+Use a consistent single-line format with a capability tag:
+
+```
+[RESEARCH 2/4] Architecture researcher complete — recommends event-driven pattern
+[MAP skip] Reusing cached maps (0 files changed since abc123)
+[MAP 1/2] Tech agent complete (partial re-map)
+[PLAN verify 1/3] Missing coverage for error handling — revising
+[BUILD 3/7] Implement phase complete — 4 files written, compiles clean
+[EXPERIMENT 2/5] Hypothesis "inline queries" — 15% faster, keeping
+[ORCHESTRATE 3/5] Service-C audit complete, 2 findings
+```
+
+### Rules
+
+- One line per milestone, no multi-paragraph updates mid-capability
+- Include counts where applicable (agent N/total, phase N/total, loop N/max)
+- Include the key outcome or finding in the line — not just "done"
+- If a capability is skipped entirely (e.g., MAP reused from cache), emit one skip line
+- Don't emit progress for SIMPLE mode — it's too fast to need it
 
 ---
 
