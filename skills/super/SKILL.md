@@ -52,6 +52,7 @@ Override suggestion: Use +research if you want to compare caching strategies fir
 **Rules:**
 - No artifacts are written, no `.super/` directory is created
 - If `+`/`-` overrides are included, show the router's base decision AND the final decision after overrides
+- If `--loops N` is included, show the loop configuration for each active capability
 - Include map cache status if `.super/state.json` exists
 
 ## Autonomous Router
@@ -86,22 +87,37 @@ digraph router {
 
 Before classifying, check if the user included `+capability` or `-capability` flags in their request. These override the router's decisions.
 
-**Syntax:** `/super [+cap ...] [-cap ...] "task description"`
+**Syntax:** `/super [--loops N] [+cap ...] [-cap ...] "task description"`
 
 | Flag | Effect |
 |------|--------|
+| `--loops N` | Set max iterations for all loops (research re-research, plan verify, experiment hypotheses) |
+| `--loops 0` | Single-pass mode: no re-research, no plan re-verify, one experiment only |
 | `+research` | Force RESEARCH on, even if the router wouldn't activate it |
 | `-map` | Force MAP off, even if the router would activate it |
 | `+experiment -research` | Force EXPERIMENT on, force RESEARCH off |
 | `+simple` | Force SIMPLE mode (skip all heavyweight capabilities) |
 | `-simple` | Force full routing even for trivial-looking tasks |
 
+**Loop defaults (when `--loops` is not specified):**
+
+| Loop type | Default max | Applies to |
+|-----------|-------------|------------|
+| Research re-research | 2 | RESEARCH gap-filling iterations |
+| Plan verification | 2 | PLAN revision loops before escalating to user |
+| Experiment hypotheses | 3 | EXPERIMENT iterations per session |
+
+When `--loops N` is provided, all loop types use N as their max.
+
+**Loop safety cap:** If the user specifies `--loops` with a value over 100, stop at 100 iterations and ask the user if they want to continue. This prevents runaway token consumption.
+
 **Rules:**
-1. Parse all `+`/`-` prefixed words (case-insensitive) before the task description
-2. Valid capability names: `simple`, `plan`, `research`, `map`, `build`, `experiment`, `generate-cli`, `orchestrate`
-3. Invalid names are ignored with a warning to the user
-4. User overrides are applied AFTER the router classifies the task — they always win
-5. Announce overrides: `"User override: +research, -map"`
+1. Parse `--loops N` first if present (N must be a non-negative integer)
+2. Parse all `+`/`-` prefixed words (case-insensitive) before the task description
+3. Valid capability names: `simple`, `plan`, `research`, `map`, `build`, `experiment`, `generate-cli`, `orchestrate`
+4. Invalid names are ignored with a warning to the user
+5. User overrides are applied AFTER the router classifies the task — they always win
+6. Announce overrides and loop setting: `"User override: +research, -map | Loops: 5"`
 
 ### Step 1: Complexity Check (SIMPLE Fast Path)
 
@@ -285,7 +301,7 @@ Before writing any code, verify the plan against:
 4. Scope is achievable, not over-ambitious
 5. No gaps between what was asked and what's planned
 
-Max 3 revision loops. If it can't pass, escalate to user.
+Default max 2 revision loops (override with `--loops N`). If it can't pass, escalate to user. Diminishing returns rule applies: if a revision produces <10% improvement in coverage, stop and escalate.
 
 ### Execute: Wave-Based with Fresh Contexts
 
@@ -366,7 +382,7 @@ Merge findings across all 4 domains. Tag confidence per section:
 | `[MEDIUM]` | Multiple community sources agree | Secondary: verified web sources |
 | `[LOW]` | Single source or inference, needs validation | Tertiary: needs validation during implementation |
 
-If gaps > 30%, evolve strategy and loop (max 3 iterations). Each iteration must reduce gaps or stop.
+If gaps > 30%, evolve strategy and loop (default max 2 iterations, or `--loops N` if set). Each iteration must reduce gaps or stop.
 
 ### Step 5: Validation Architecture
 
@@ -433,8 +449,10 @@ For each: what goes wrong, root cause, prevention, warning signs
 
 ### Anti-Loop Guard
 
-- Max 3 iterations; each must reduce gaps
-- Abort on diminishing returns (< 10% new findings per iteration)
+- Default max 2 iterations (override with `--loops N`)
+- Each iteration must reduce gaps or the loop stops early
+- **Diminishing returns rule:** If an iteration produces <10% new findings compared to the previous, stop immediately regardless of remaining iterations
+- **Safety cap:** If `--loops` exceeds 100, pause at 100 and ask user to confirm before continuing
 
 ### Output feeds into PLAN
 
@@ -600,7 +618,7 @@ Experiments persist across sessions via `.super/experiments.md`. When EXPERIMENT
 3. **Implement** - Make the change (git commit)
 4. **Measure** - Same evaluation as baseline
 5. **Decide**: Better = keep. Worse = reset. Crashed = reset + adjust.
-6. **Loop** - Max 5 experiments per session before reassessing strategy
+6. **Loop** - Default max 3 experiments per session (override with `--loops N`). Reassess strategy if no improvement after 2 consecutive experiments.
 
 ### Constraints
 
@@ -706,7 +724,8 @@ Use a consistent single-line format with a capability tag:
 ### Self-Evolving Strategy (from OpenSpace)
 - If an approach isn't working, pivot -- don't persist
 - Log strategy changes so the user can see reasoning
-- Max 3 iterations on any loop (anti-runaway)
+- Default max 2 iterations on any loop (override with `--loops N`, hard cap at 100 with user confirmation)
+- **Diminishing returns rule (all loops):** If an iteration produces <10% new value vs the previous, stop early regardless of remaining budget
 
 ### Simplicity Criterion (from AutoResearch)
 - Simpler wins when results are comparable
@@ -721,7 +740,7 @@ Use a consistent single-line format with a capability tag:
 ### Verify Before Execute (from GSD)
 - Plans checked before execution, not just after
 - Requirement coverage, atomicity, dependencies, scope
-- Max 3 revision loops; escalate if still failing
+- Default max 2 revision loops (override with `--loops N`); escalate if still failing
 
 ### Brownfield First (from GSD)
 - Map before modifying

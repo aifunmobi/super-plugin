@@ -146,6 +146,35 @@ Override the router's decisions with `+`/`-` flags:
 
 Overrides always win over the router's judgment. Combine as many as you need.
 
+### Loop control
+
+Control how many iterations research, planning, and experiments run:
+
+```
+/super --loops 1 "research the best auth approach"   # One-shot, no re-research
+/super --loops 5 "optimize the search endpoint"      # Give experiments more room
+/super --loops 0 "build the dashboard"               # Single pass, no iteration at all
+```
+
+**Defaults without `--loops`:**
+
+| Loop type | Default max |
+|---|---|
+| Research re-research | 2 |
+| Plan verification | 2 |
+| Experiment hypotheses | 3 |
+
+All loops have a **diminishing returns** check: if an iteration produces <10% new value compared to the previous one, it stops early regardless of remaining budget.
+
+**Safety cap:** Values over 100 pause at the 100th iteration and ask if you want to continue.
+
+Combine with other flags:
+
+```
+/super --loops 5 +experiment "make the API faster"   # 5 experiment iterations, forced on
+/super --loops 0 -map "quick feature add"            # No loops, no mapping
+```
+
 ### Dry run
 
 Preview routing decisions without executing:
@@ -170,9 +199,10 @@ Structured single-line status updates during long-running work:
 
 ```
 [RESEARCH 2/4] Architecture researcher complete — recommends event-driven pattern
+[RESEARCH reloop 1/2] Gap >30% in pitfalls — re-researching with evolved strategy
 [MAP skip] Reusing cached maps (0 files changed since abc123)
 [BUILD 3/7] Implement phase complete — 4 files written, compiles clean
-[EXPERIMENT 2/5] Hypothesis "inline queries" — 15% faster, keeping
+[EXPERIMENT 2/3] Hypothesis "inline queries" — 15% faster, keeping
 [ORCHESTRATE 3/5] Service-C audit complete, 2 findings
 ```
 
@@ -226,6 +256,13 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v1.3.0
+
+- **Loop control** — `--loops N` flag to control iteration limits across research, planning, and experiments
+- **Reduced defaults** — Research: 3→2, Plan verify: 3→2, Experiments: 5→3 (less waste, earlier escalation)
+- **Diminishing returns** — All loops auto-stop when an iteration produces <10% new value
+- **Safety cap** — Loops >100 pause and ask user to confirm before continuing
 
 ### v1.2.0
 
