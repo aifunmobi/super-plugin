@@ -1,0 +1,8 @@
+{
+  "name": "super",
+  "description": "Autonomous task engine combining research, planning, building, experimentation, orchestration, and codebase mapping. Routes tasks automatically to the right combination of capabilities.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Peter"
+  }
+}
