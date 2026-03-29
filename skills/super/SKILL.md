@@ -195,22 +195,71 @@ Read the user's request and activate capabilities based on these signals. **Mult
 - If there are independent subtasks: **ORCHESTRATE** wraps the other capabilities.
 - If the user provided `+`/`-` overrides: **those always win** over the router's judgment.
 
-### Announce what you're activating
+### Step 3: Execution Plan & Confirmation
 
-Before starting work, briefly tell the user which capabilities you're activating and why. Include any user overrides.
+After routing completes, **always present an execution plan summary and ask the user to confirm before proceeding.** This is mandatory for all non-SIMPLE tasks. Do not begin any capability until the user approves.
+
+**Format:**
 
 ```
-Activating: MAP -> RESEARCH -> PLAN -> BUILD
-User override: +research (forced on)
-- MAP: This is an existing Next.js project, need to understand patterns first
-- RESEARCH: Event-driven architecture has multiple approaches worth comparing (user requested)
-- PLAN: Will create verified atomic tasks before coding
-- BUILD: Multi-phase implementation with quality gates
+/super Execution Plan
+━━━━━━━━━━━━━━━━━━━━
+
+Task: "Add event-driven billing to the Express app"
+
+Capabilities: MAP -> RESEARCH -> PLAN -> BUILD
+User overrides: +research (forced on)
+Loop budget: 2 per capability (default)
+
+Step-by-step:
+1. MAP — Analyze existing codebase (4 agents: tech, architecture, quality, concerns)
+   Est. scope: Full map (no cached maps found)
+2. RESEARCH — Investigate event-driven patterns for billing
+   Est. scope: 4 parallel researchers, up to 2 re-research loops if gaps >30%
+3. PLAN — Create verified atomic tasks with dependency waves
+   Est. scope: Discuss gray areas, draft plan, up to 2 verification loops
+4. BUILD — Implement through multi-phase pipeline
+   Est. scope: Analyze → Design → Implement → Test → Refine → Deliver
+
+Artifacts will be written to: .super/
+Commits: Atomic per task (feat(wave-task): description)
+
+Proceed? [Y/n]
 ```
 
-For simple tasks:
+**Rules for the execution plan:**
+1. List every capability that will run, in order
+2. For each capability, describe what it will do and its scope (full/partial map, how many agents, loop budget)
+3. Show the loop budget (default or `--loops N`)
+4. Show any user overrides that changed the routing
+5. Show where artifacts will be written
+6. **Wait for user confirmation** before starting any work
+7. If the user says no, ask what they'd like to change (they can adjust overrides, loops, or the task itself)
+
+**SIMPLE mode exception:** SIMPLE tasks skip the confirmation gate — they're too trivial to need approval. Just announce and execute:
+
 ```
 Activating: SIMPLE (trivial change, skipping full pipeline)
+```
+
+**Research-only exception:** Pure research tasks (no code changes) also present the plan but the summary is shorter:
+
+```
+/super Execution Plan
+━━━━━━━━━━━━━━━━━━━━
+
+Task: "What's the best database for our use case?"
+
+Capabilities: RESEARCH
+Loop budget: 2 re-research iterations (default)
+
+Step-by-step:
+1. RESEARCH — 4 parallel researchers (stack, architecture, features, pitfalls)
+   Up to 2 re-research loops if gaps >30%, auto-stop on diminishing returns
+
+Artifacts will be written to: .super/research.md
+
+Proceed? [Y/n]
 ```
 
 ---

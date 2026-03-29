@@ -27,6 +27,7 @@ Everything is persisted to `.super/` — surviving context resets, session bound
 | Simple tasks get buried in ceremony | **SIMPLE fast path** — typo fixes and config changes skip the full pipeline |
 | The router picks wrong capabilities | **Capability overrides** — `+research -map` to force exactly what you want |
 | Long tasks feel like a black box | **Streaming progress** — structured status updates at every milestone |
+| You don't know what it's about to do | **Execution plan** — shows exactly what will happen and waits for your OK |
 | Stale artifacts pile up | **Cleanup command** — `/super clean` to archive or remove old work |
 
 ## Quick start
@@ -78,15 +79,30 @@ Just say `/super` followed by what you want. That's the whole interface.
 /super Build a CLI for our internal API
 ```
 
-The router analyzes your request and announces what it's activating:
+The router analyzes your request, builds an execution plan, and asks you to confirm before starting:
 
 ```
-Activating: MAP -> RESEARCH -> PLAN -> BUILD
-- MAP: Existing Express project, need to understand patterns first
-- RESEARCH: Auth has multiple approaches worth comparing (JWT, session, OAuth)
-- PLAN: Will create verified atomic tasks before coding
-- BUILD: Multi-phase implementation with quality gates
+/super Execution Plan
+━━━━━━━━━━━━━━━━━━━━
+
+Task: "Add authentication to this Express app"
+
+Capabilities: MAP -> RESEARCH -> PLAN -> BUILD
+Loop budget: 2 per capability (default)
+
+Step-by-step:
+1. MAP — Analyze existing codebase (4 agents: tech, architecture, quality, concerns)
+2. RESEARCH — Investigate auth approaches (JWT, session, OAuth)
+3. PLAN — Create verified atomic tasks with dependency waves
+4. BUILD — Implement through multi-phase pipeline (Analyze → Design → Implement → Test → Refine → Deliver)
+
+Artifacts will be written to: .super/
+Commits: Atomic per task
+
+Proceed? [Y/n]
 ```
+
+You review the plan, adjust if needed (`"actually skip research, I know I want JWT"`), and confirm. SIMPLE mode tasks skip this step — they just execute immediately.
 
 ## 8 Capabilities
 
@@ -256,6 +272,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v1.4.0
+
+- **Execution plan & confirmation** — After routing, presents a step-by-step summary of what will happen and waits for user approval before starting. SIMPLE mode skips this.
 
 ### v1.3.0
 
