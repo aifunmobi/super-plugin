@@ -149,30 +149,31 @@ For 2+ independent tasks. Decomposes the work, dispatches one agent per task (ea
 
 ## Advanced features
 
-### Capability overrides
+### Options
 
-Override the router's decisions with `+`/`-` flags:
+All options are plain words — no `+`, `-`, or `--` to remember. Just put them before your task:
 
 ```
-/super +research "add caching to the API"     # Force research on
-/super -map "add a utility function"           # Skip mapping
-/super +experiment -research "try inlining"    # Force experiment, skip research
-/super +simple "just add the import"           # Force simple mode
+/super research add caching to the API           # Force research on
+/super no-map add a utility function              # Skip mapping
+/super experiment no-research try inlining        # Force experiment, skip research
+/super simple just add the import                 # Force simple mode
+/super no-map no-research refactor billing        # Skip both, go straight to plan+build
 ```
 
-Overrides always win over the router's judgment. Combine as many as you need.
+To turn a capability **on**, use its name. To turn it **off**, prefix with `no-`.
 
 ### Loop control
 
-Control how many iterations research, planning, and experiments run:
+Control how many iterations research, planning, and experiments run with `loops=N`:
 
 ```
-/super --loops 1 "research the best auth approach"   # One-shot, no re-research
-/super --loops 5 "optimize the search endpoint"      # Give experiments more room
-/super --loops 0 "build the dashboard"               # Single pass, no iteration at all
+/super loops=1 research the best auth approach    # One-shot, no re-research
+/super loops=5 optimize the search endpoint       # Give experiments more room
+/super loops=0 build the dashboard                # Single pass, no iteration at all
 ```
 
-**Defaults without `--loops`:**
+**Defaults without `loops=`:**
 
 | Loop type | Default max |
 |---|---|
@@ -184,11 +185,12 @@ All loops have a **diminishing returns** check: if an iteration produces <10% ne
 
 **Safety cap:** Values over 100 pause at the 100th iteration and ask if you want to continue.
 
-Combine with other flags:
+Combine freely:
 
 ```
-/super --loops 5 +experiment "make the API faster"   # 5 experiment iterations, forced on
-/super --loops 0 -map "quick feature add"            # No loops, no mapping
+/super experiment loops=5 make the API faster     # 5 experiment iterations, forced on
+/super loops=0 no-map quick feature add           # No loops, no mapping
+/super research no-map loops=3 add auth           # Research on, map off, 3 loops
 ```
 
 ### Dry run
@@ -196,10 +198,10 @@ Combine with other flags:
 Preview routing decisions without executing:
 
 ```
-/super --dry-run "add caching to the API"
+/super dry add caching to the API
 ```
 
-Shows each capability with yes/no, the activation order, map cache status, and suggests useful overrides. Nothing is written.
+Shows each capability with yes/no, the activation order, map cache status, and suggests useful options. Nothing is written.
 
 ### Cleanup
 
@@ -272,6 +274,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v1.5.0
+
+- **Simplified syntax** — All options are plain words (`research`, `no-map`, `loops=5`, `dry`, `clean`). No `+`, `-`, or `--` prefixes.
 
 ### v1.4.0
 

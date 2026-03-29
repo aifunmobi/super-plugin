@@ -24,7 +24,7 @@ Archives or removes the `.super/` directory for the current project.
 
 **Auto-clean:** If `.super/state.json` shows all capabilities completed and the last update was >30 days ago, suggest cleanup proactively when `/super` is next invoked.
 
-### `/super --dry-run <task>`
+### `/super dry <task>`
 
 Shows which capabilities the router would activate — without executing anything.
 
@@ -46,13 +46,13 @@ Activation order: MAP -> PLAN -> BUILD
 
 Map cache: fresh (2 files changed since last map, partial re-map of Tech only)
 
-Override suggestion: Use +research if you want to compare caching strategies first
+Override suggestion: Use "research" to also compare caching strategies
 ```
 
 **Rules:**
 - No artifacts are written, no `.super/` directory is created
-- If `+`/`-` overrides are included, show the router's base decision AND the final decision after overrides
-- If `--loops N` is included, show the loop configuration for each active capability
+- If overrides are included, show the router's base decision AND the final decision after overrides
+- If `loops=N` is included, show the loop configuration for each active capability
 - Include map cache status if `.super/state.json` exists
 
 ## Autonomous Router
@@ -83,23 +83,46 @@ digraph router {
 }
 ```
 
-### Step 0: Parse Capability Overrides
+### Step 0: Parse Options
 
-Before classifying, check if the user included `+capability` or `-capability` flags in their request. These override the router's decisions.
+Before classifying, scan the user's input for option words. Options are **bare words** at the start of the request, before the task description.
 
-**Syntax:** `/super [--loops N] [+cap ...] [-cap ...] "task description"`
+**Syntax:** `/super [options] <task description>`
 
-| Flag | Effect |
-|------|--------|
-| `--loops N` | Set max iterations for all loops (research re-research, plan verify, experiment hypotheses) |
-| `--loops 0` | Single-pass mode: no re-research, no plan re-verify, one experiment only |
-| `+research` | Force RESEARCH on, even if the router wouldn't activate it |
-| `-map` | Force MAP off, even if the router would activate it |
-| `+experiment -research` | Force EXPERIMENT on, force RESEARCH off |
-| `+simple` | Force SIMPLE mode (skip all heavyweight capabilities) |
-| `-simple` | Force full routing even for trivial-looking tasks |
+All options are plain words — no `+`, `-`, or `--` prefixes.
 
-**Loop defaults (when `--loops` is not specified):**
+| Option | Effect |
+|--------|--------|
+| `research` | Force RESEARCH on |
+| `no-research` | Force RESEARCH off |
+| `map` | Force MAP on |
+| `no-map` | Force MAP off |
+| `build` | Force BUILD on |
+| `no-build` | Force BUILD off |
+| `experiment` | Force EXPERIMENT on |
+| `no-experiment` | Force EXPERIMENT off |
+| `plan` | Force PLAN on |
+| `no-plan` | Force PLAN off (use with caution) |
+| `orchestrate` | Force ORCHESTRATE on |
+| `no-orchestrate` | Force ORCHESTRATE off |
+| `generate-cli` | Force GENERATE-CLI on |
+| `simple` | Force SIMPLE mode (skip all heavyweight capabilities) |
+| `no-simple` | Force full routing even for trivial-looking tasks |
+| `loops=N` | Set max iterations for all loops (0 = single-pass, no iteration) |
+| `dry` | Dry run — show routing decisions without executing |
+| `clean` | Archive or remove `.super/` artifacts |
+
+**Examples:**
+```
+/super research loops=5 add caching to the API
+/super no-map no-research refactor the billing module
+/super simple fix the typo in README.md
+/super dry add authentication to this Express app
+/super experiment no-map loops=3 optimize the search endpoint
+/super clean
+```
+
+**Loop defaults (when `loops=` is not specified):**
 
 | Loop type | Default max | Applies to |
 |-----------|-------------|------------|
@@ -107,17 +130,18 @@ Before classifying, check if the user included `+capability` or `-capability` fl
 | Plan verification | 2 | PLAN revision loops before escalating to user |
 | Experiment hypotheses | 3 | EXPERIMENT iterations per session |
 
-When `--loops N` is provided, all loop types use N as their max.
+When `loops=N` is provided, all loop types use N as their max.
 
-**Loop safety cap:** If the user specifies `--loops` with a value over 100, stop at 100 iterations and ask the user if they want to continue. This prevents runaway token consumption.
+**Loop safety cap:** If the user specifies `loops=` with a value over 100, stop at 100 iterations and ask the user if they want to continue. This prevents runaway token consumption.
 
-**Rules:**
-1. Parse `--loops N` first if present (N must be a non-negative integer)
-2. Parse all `+`/`-` prefixed words (case-insensitive) before the task description
-3. Valid capability names: `simple`, `plan`, `research`, `map`, `build`, `experiment`, `generate-cli`, `orchestrate`
-4. Invalid names are ignored with a warning to the user
-5. User overrides are applied AFTER the router classifies the task — they always win
-6. Announce overrides and loop setting: `"User override: +research, -map | Loops: 5"`
+**Parsing rules:**
+1. Read words from the start of the input, left to right
+2. Each word is checked against the option list (case-insensitive)
+3. `loops=N` is recognized by the `loops=` prefix (N must be a non-negative integer)
+4. The first word that doesn't match any option marks the start of the task description
+5. Unrecognized words that look like options (e.g., `turbo`, `banana`) are ignored with a warning
+6. Options are applied AFTER the router classifies the task — they always win
+7. Announce options in the execution plan: `"Options: research, no-map, loops=5"`
 
 ### Step 1: Complexity Check (SIMPLE Fast Path)
 
@@ -182,9 +206,11 @@ Read the user's request and activate capabilities based on these signals. **Mult
 | "Create a CLI for our internal API" | PLAN -> GENERATE-CLI | Plan the interface, then generate it |
 | "Refactor the billing module to use events" | MAP -> RESEARCH -> PLAN -> BUILD | Full pipeline: understand, research patterns, plan, execute |
 | "Compare CRDT vs OT for our editor" | RESEARCH -> PLAN | Research both, then plan the chosen approach |
-| `/super +research "add caching"` | MAP -> RESEARCH -> PLAN -> BUILD | User forced RESEARCH even though router might skip it |
-| `/super -map "add a util function"` | PLAN -> BUILD | User suppressed MAP — knows the codebase already |
-| `/super +simple "add the import"` | **SIMPLE** | User forced simple mode for a borderline task |
+| `/super research add caching` | MAP -> RESEARCH -> PLAN -> BUILD | User forced RESEARCH even though router might skip it |
+| `/super no-map add a util function` | PLAN -> BUILD | User suppressed MAP — knows the codebase already |
+| `/super simple add the import` | **SIMPLE** | User forced simple mode for a borderline task |
+| `/super research loops=5 optimize search` | MAP -> RESEARCH -> PLAN -> EXPERIMENT | Forced research, 5 iterations for all loops |
+| `/super dry build a dashboard` | (dry run only) | Preview routing without executing |
 
 ### When in doubt
 
@@ -193,7 +219,7 @@ Read the user's request and activate capabilities based on these signals. **Mult
 - If there's an existing codebase: **MAP first** (unless already mapped this session or maps are fresh).
 - If you're unsure about the right approach: **RESEARCH before PLAN.**
 - If there are independent subtasks: **ORCHESTRATE** wraps the other capabilities.
-- If the user provided `+`/`-` overrides: **those always win** over the router's judgment.
+- If the user provided options (e.g., `research`, `no-map`, `loops=5`): **those always win** over the router's judgment.
 
 ### Step 3: Execution Plan & Confirmation
 
@@ -208,7 +234,7 @@ After routing completes, **always present an execution plan summary and ask the 
 Task: "Add event-driven billing to the Express app"
 
 Capabilities: MAP -> RESEARCH -> PLAN -> BUILD
-User overrides: +research (forced on)
+Options: research (forced on)
 Loop budget: 2 per capability (default)
 
 Step-by-step:
@@ -230,8 +256,8 @@ Proceed? [Y/n]
 **Rules for the execution plan:**
 1. List every capability that will run, in order
 2. For each capability, describe what it will do and its scope (full/partial map, how many agents, loop budget)
-3. Show the loop budget (default or `--loops N`)
-4. Show any user overrides that changed the routing
+3. Show the loop budget (default or `loops=N`)
+4. Show any user options that changed the routing
 5. Show where artifacts will be written
 6. **Wait for user confirmation** before starting any work
 7. If the user says no, ask what they'd like to change (they can adjust overrides, loops, or the task itself)
@@ -350,7 +376,7 @@ Before writing any code, verify the plan against:
 4. Scope is achievable, not over-ambitious
 5. No gaps between what was asked and what's planned
 
-Default max 2 revision loops (override with `--loops N`). If it can't pass, escalate to user. Diminishing returns rule applies: if a revision produces <10% improvement in coverage, stop and escalate.
+Default max 2 revision loops (override with `loops=N`). If it can't pass, escalate to user. Diminishing returns rule applies: if a revision produces <10% improvement in coverage, stop and escalate.
 
 ### Execute: Wave-Based with Fresh Contexts
 
@@ -431,7 +457,7 @@ Merge findings across all 4 domains. Tag confidence per section:
 | `[MEDIUM]` | Multiple community sources agree | Secondary: verified web sources |
 | `[LOW]` | Single source or inference, needs validation | Tertiary: needs validation during implementation |
 
-If gaps > 30%, evolve strategy and loop (default max 2 iterations, or `--loops N` if set). Each iteration must reduce gaps or stop.
+If gaps > 30%, evolve strategy and loop (default max 2 iterations, or `loops=N` if set). Each iteration must reduce gaps or stop.
 
 ### Step 5: Validation Architecture
 
@@ -498,10 +524,10 @@ For each: what goes wrong, root cause, prevention, warning signs
 
 ### Anti-Loop Guard
 
-- Default max 2 iterations (override with `--loops N`)
+- Default max 2 iterations (override with `loops=N`)
 - Each iteration must reduce gaps or the loop stops early
 - **Diminishing returns rule:** If an iteration produces <10% new findings compared to the previous, stop immediately regardless of remaining iterations
-- **Safety cap:** If `--loops` exceeds 100, pause at 100 and ask user to confirm before continuing
+- **Safety cap:** If `loops=` exceeds 100, pause at 100 and ask user to confirm before continuing
 
 ### Output feeds into PLAN
 
@@ -530,8 +556,8 @@ Before dispatching map agents, check if cached maps can be reused:
 | Cached maps exist, <10 files changed, no new dependencies | **Partial MAP** — only re-run agents whose domain was affected (see domain rules below) |
 | Cached maps exist, >10 files changed OR new deps/config | Full MAP (all 4 agents) — too much changed |
 | Cached maps >7 days old | Full MAP regardless of diff — staleness ceiling |
-| User passed `+map` override | Full MAP regardless of cache |
-| User passed `-map` override | Skip MAP regardless of cache |
+| User passed `map` option | Full MAP regardless of cache |
+| User passed `no-map` option | Skip MAP regardless of cache |
 
 **Domain-to-file mapping for partial MAP:**
 
@@ -667,7 +693,7 @@ Experiments persist across sessions via `.super/experiments.md`. When EXPERIMENT
 3. **Implement** - Make the change (git commit)
 4. **Measure** - Same evaluation as baseline
 5. **Decide**: Better = keep. Worse = reset. Crashed = reset + adjust.
-6. **Loop** - Default max 3 experiments per session (override with `--loops N`). Reassess strategy if no improvement after 2 consecutive experiments.
+6. **Loop** - Default max 3 experiments per session (override with `loops=N`). Reassess strategy if no improvement after 2 consecutive experiments.
 
 ### Constraints
 
@@ -773,7 +799,7 @@ Use a consistent single-line format with a capability tag:
 ### Self-Evolving Strategy (from OpenSpace)
 - If an approach isn't working, pivot -- don't persist
 - Log strategy changes so the user can see reasoning
-- Default max 2 iterations on any loop (override with `--loops N`, hard cap at 100 with user confirmation)
+- Default max 2 iterations on any loop (override with `loops=N`, hard cap at 100 with user confirmation)
 - **Diminishing returns rule (all loops):** If an iteration produces <10% new value vs the previous, stop early regardless of remaining budget
 
 ### Simplicity Criterion (from AutoResearch)
@@ -789,7 +815,7 @@ Use a consistent single-line format with a capability tag:
 ### Verify Before Execute (from GSD)
 - Plans checked before execution, not just after
 - Requirement coverage, atomicity, dependencies, scope
-- Default max 2 revision loops (override with `--loops N`); escalate if still failing
+- Default max 2 revision loops (override with `loops=N`); escalate if still failing
 
 ### Brownfield First (from GSD)
 - Map before modifying
