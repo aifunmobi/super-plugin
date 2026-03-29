@@ -55,6 +55,18 @@ test('All option keywords present', () => {
   assert(missing.length === 0, `Missing: ${missing.join(', ')}`);
 });
 
+test('Two-phase research pattern documented', () => {
+  assert(SKILL.includes('Two-Phase Research Pattern'), 'Missing two-phase section header');
+  assert(SKILL.includes('Phase 1'), 'Missing Phase 1');
+  assert(SKILL.includes('Phase 2'), 'Missing Phase 2');
+  assert(SKILL.includes('research-raw.md'), 'Missing research-raw.md artifact');
+  assert(SKILL.includes('Sub-agents do NOT have web search access'), 'Missing platform constraint note');
+});
+
+test('No old single-phase research pattern', () => {
+  assert(!SKILL.includes('Dispatch 4 parallel researchers'), 'Found old single-phase pattern — should be two-phase');
+});
+
 test('Update meta-command documented', () => {
   assert(SKILL.includes('/super update'), 'Missing /super update section');
   assert(SKILL.includes('Update to v'), 'Missing update output example');
@@ -114,6 +126,11 @@ test('Option reference section exists', () => {
 
 test('loops= syntax used in README', () => {
   assert(README_BEFORE_CHANGELOG.includes('loops='), 'loops= not found');
+});
+
+test('Two-phase research mentioned in README', () => {
+  assert(README.includes('two-phase') || README.includes('Two-phase'), 'Two-phase research not in README');
+  assert(README.includes('Phase 1') && README.includes('Phase 2'), 'Phase 1/2 not described in README');
 });
 
 console.log(`\n${passed} passed, ${failed} failed\n`);

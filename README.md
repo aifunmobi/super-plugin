@@ -21,6 +21,7 @@ Everything is persisted to `.super/` — surviving context resets, session bound
 
 | Problem | How /super solves it |
 |---|---|
+| Research is shallow and misses connections | **Two-phase research** — orchestrator gathers data, 4 parallel analysts cross-reference and catch inconsistencies |
 | Claude jumps straight to coding without thinking | **Plan guard** — enforces research and planning before any code is written |
 | Codebase gets re-analyzed every session | **Incremental map caching** — only re-maps what actually changed (git SHA tracking) |
 | You forget which approach you already tried | **Experiment continuity** — baselines, hypotheses, and results persist across sessions |
@@ -205,9 +206,15 @@ Triggers on: typo fixes, renames, config value changes, toggling flags, adding i
 
 The backbone. Every non-trivial task goes through **discuss gray areas -> create atomic tasks -> verify coverage -> execute in waves**. Tasks are grouped into dependency waves and executed with fresh agent contexts. Each completed task produces an atomic git commit.
 
-### RESEARCH — Expert-grade investigation
+### RESEARCH — Expert-grade investigation (two-phase)
 
-Two-phase process: the orchestrator runs parallel web searches across 4 domains (stack, architecture, features, pitfalls), then dispatches 4 analysis agents with the pre-fetched results. Produces confidence-tagged findings (`[HIGH]`/`[MEDIUM]`/`[LOW]`), a "don't hand-roll" list of things to use off-the-shelf, and a validation architecture for verifying the implementation.
+Uses a proven two-phase pattern that was tested head-to-head against single-phase research and produced significantly deeper analysis:
+
+**Phase 1 — Orchestrator gathers data:** Runs 8-12 parallel web searches across 4 domains (stack, architecture, features, pitfalls). Saves raw results to `.super/research-raw.md`.
+
+**Phase 2 — 4 analysis agents synthesize:** Each agent receives the pre-fetched results and its domain focus. Produces confidence-tagged findings (`[HIGH]`/`[MEDIUM]`/`[LOW]`), cross-references across sources, catches inconsistencies, and generates domain-specific analytical notes.
+
+This two-phase approach exists because sub-agents don't have web search access (platform constraint). The result is actually better than if they did — separating data gathering from analysis produces more rigorous, cross-referenced output with independent quality checks per domain.
 
 ### MAP — Understand before modifying
 
@@ -293,6 +300,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v1.6.0
+
+- **Two-phase research** — Orchestrator gathers data via parallel web searches, then dispatches 4 analysis agents with pre-fetched results. Tested head-to-head: produced 2x the sources, domain-specific analyst notes, cross-reference quality checks, and insights (like data discrepancies and strategic framings) that single-phase research missed.
 
 ### v1.5.0
 
