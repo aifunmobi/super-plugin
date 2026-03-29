@@ -20,8 +20,20 @@ echo ""
 
 # Clone or update the repo to the permanent plugin directory
 if [ -d "$PLUGIN_DIR/.git" ]; then
-  echo "  Existing installation found — pulling latest..."
-  git -C "$PLUGIN_DIR" pull --ff-only --quiet
+  echo "  Existing installation found — updating..."
+  # Fix stale branch tracking (master -> main migration)
+  CURRENT_BRANCH=$(git -C "$PLUGIN_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  REMOTE_DEFAULT=$(git -C "$PLUGIN_DIR" remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}')
+  if [ "$CURRENT_BRANCH" = "master" ] || [ "$REMOTE_DEFAULT" = "main" -a "$CURRENT_BRANCH" != "main" ]; then
+    echo "  Switching from $CURRENT_BRANCH to main..."
+    git -C "$PLUGIN_DIR" fetch --quiet origin main 2>/dev/null
+    git -C "$PLUGIN_DIR" checkout -B main origin/main --quiet 2>/dev/null
+  fi
+  git -C "$PLUGIN_DIR" pull --ff-only --quiet 2>/dev/null || {
+    echo "  Pull failed — re-cloning fresh..."
+    rm -rf "$PLUGIN_DIR"
+    git clone --quiet "$REPO" "$PLUGIN_DIR"
+  }
 else
   mkdir -p "$(dirname "$PLUGIN_DIR")"
   if [ -d "$PLUGIN_DIR" ]; then
