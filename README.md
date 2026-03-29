@@ -7,7 +7,7 @@ A Claude Code plugin that autonomously routes tasks to the right combination of 
 ### Option A: One-liner (recommended)
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/aifunmobi/super-plugin/master/install.sh)
+bash <(curl -s https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh)
 ```
 
 This clones the repo into your Claude Code plugins directory and enables it automatically.
