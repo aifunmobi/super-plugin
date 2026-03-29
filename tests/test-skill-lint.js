@@ -50,7 +50,7 @@ test('Uses loops= syntax', () => {
 
 test('All option keywords present', () => {
   const required = ['simple', 'no-simple', 'research', 'no-research', 'map', 'no-map',
-    'experiment', 'no-experiment', 'dry', 'clean', 'update', 'loops='];
+    'experiment', 'no-experiment', 'illustrate', 'dry', 'clean', 'update', 'loops='];
   const missing = required.filter(k => !SKILL.includes(k));
   assert(missing.length === 0, `Missing: ${missing.join(', ')}`);
 });
@@ -77,6 +77,19 @@ test('No old single-phase MAP pattern', () => {
   // The old pattern just said "Dispatch up to 4 parallel agents" without a Phase 1/2 split
   const mapSection = SKILL.split('## MAP')[1]?.split('## BUILD')[0] || '';
   assert(mapSection.includes('Phase 1') && mapSection.includes('Phase 2'), 'MAP section missing Phase 1/2 structure');
+});
+
+test('ILLUSTRATE capability documented', () => {
+  assert(SKILL.includes('## ILLUSTRATE'), 'Missing ILLUSTRATE section');
+  assert(SKILL.includes('matplotlib'), 'Missing matplotlib reference');
+  assert(SKILL.includes('Agg'), 'Missing Agg backend reference');
+  assert(SKILL.includes('chart-specs.json'), 'Missing chart-specs.json artifact');
+  assert(SKILL.includes('.super/charts/'), 'Missing charts directory reference');
+});
+
+test('illustrate option in option table', () => {
+  assert(SKILL.includes('`illustrate`'), 'illustrate not in option table');
+  assert(SKILL.includes('`no-illustrate`') || SKILL.includes('no-illustrate'), 'no-illustrate not mentioned');
 });
 
 test('Update meta-command documented', () => {

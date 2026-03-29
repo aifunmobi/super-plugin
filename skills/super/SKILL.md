@@ -154,6 +154,7 @@ All options are plain words — no `+`, `-`, or `--` prefixes.
 | `simple` | Force SIMPLE mode (skip all heavyweight capabilities) |
 | `no-simple` | Force full routing even for trivial-looking tasks |
 | `loops=N` | Set max iterations for all loops (0 = single-pass, no iteration) |
+| `illustrate` | Generate publication-quality charts from report data tables (matplotlib, headless) |
 | `dry` | Dry run — show routing decisions without executing |
 | `clean` | Archive or remove `.super/` artifacts |
 
@@ -164,6 +165,7 @@ All options are plain words — no `+`, `-`, or `--` prefixes.
 /super simple fix the typo in README.md
 /super dry add authentication to this Express app
 /super experiment no-map loops=3 optimize the search endpoint
+/super illustrate research write a report on market trends
 /super clean
 ```
 
@@ -893,6 +895,181 @@ Use a consistent single-line format with a capability tag:
 - Include the key outcome or finding in the line — not just "done"
 - If a capability is skipped entirely (e.g., MAP reused from cache), emit one skip line
 - Don't emit progress for SIMPLE mode — it's too fast to need it
+
+---
+
+## ILLUSTRATE (Chart Generation)
+
+Activated when the `illustrate` option is present. Generates publication-quality charts and graphs from report data tables using matplotlib (headless, Agg backend). Charts are saved as PNGs and passed to the PDF generator for embedding.
+
+**This is a post-processing step** — it runs AFTER research/report content is written, BEFORE PDF generation.
+
+### Prerequisites
+
+- Python 3 with matplotlib installed (`python3 -c "import matplotlib"`)
+- No display server needed (uses Agg backend)
+- Seaborn optional for statistical plots
+
+### Two-Phase Chart Generation
+
+Like RESEARCH and MAP, ILLUSTRATE uses a two-phase pattern:
+
+**Phase 1 — Orchestrator identifies chart opportunities:**
+
+Scan the markdown report for tables that should become charts. Use this mapping:
+
+| Data pattern in table | Chart type | When to use |
+|---|---|---|
+| Ranked items with numeric scores | Horizontal bar chart | Confidence rankings, performance comparisons |
+| Time series data (yearly/monthly) | Vertical bar chart with value labels | Returns by year, market size over time |
+| Cross-category matrix (Strong/Moderate/Weak) | Color-coded heatmap | Cross-market robustness, feature comparisons |
+| Values that decay or grow over time | Multi-line plot | Alpha decay curves, growth trajectories |
+| Side-by-side comparisons of few items | Grouped bar chart | Strategy A vs B vs C |
+| Percentage breakdown | Horizontal stacked bar or pie | Confidence assessment, allocation splits |
+
+For each identified chart, create a spec:
+```json
+{
+  "id": "chart-01",
+  "type": "horizontal_bar",
+  "title": "Momentum Indicators — Confidence Ranking",
+  "data": {"labels": ["TS Momentum", "50-Day MA", ...], "values": [95, 90, ...], "colors": ["#2ecc71", "#2ecc71", ...]},
+  "file": ".super/charts/chart-01.png"
+}
+```
+
+Save all specs to `.super/chart-specs.json`.
+
+**Phase 2 — Generate charts via Python scripts:**
+
+For each spec, write and execute a Python script using matplotlib. The orchestrator does this directly (no sub-agents needed — matplotlib runs in Bash).
+
+### Chart Style Guide
+
+All charts must follow this consistent style for institutional/publication quality:
+
+```python
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+# Standard style settings
+COLORS = {
+    'primary': '#1a3a4a',      # Dark navy (headers, titles)
+    'accent': '#c8963e',       # Gold (highlights, key data)
+    'teal': '#2a9d8f',         # Teal (secondary accent)
+    'high': '#2ecc71',         # Green (HIGH confidence)
+    'medium': '#f39c12',       # Amber (MEDIUM confidence)
+    'low': '#e74c3c',          # Red (LOW confidence)
+    'bg': '#f8f9fa',           # Light background
+    'grid': '#e0e0e0',         # Grid lines
+    'text': '#333333',         # Body text
+}
+
+CHART_DEFAULTS = {
+    'figure.figsize': (10, 6),
+    'figure.dpi': 150,
+    'font.family': 'Arial',
+    'font.size': 10,
+    'axes.titlesize': 14,
+    'axes.titleweight': 'bold',
+    'axes.labelsize': 11,
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'savefig.bbox': 'tight',
+    'savefig.pad_inches': 0.3,
+}
+plt.rcParams.update(CHART_DEFAULTS)
+```
+
+### Chart Type Templates
+
+**Horizontal Bar (rankings/comparisons):**
+```python
+fig, ax = plt.subplots(figsize=(10, 5))
+bars = ax.barh(labels, values, color=colors, height=0.6)
+ax.set_xlabel('Score')
+ax.set_title(title, pad=15)
+ax.invert_yaxis()  # Highest at top
+for bar, val in zip(bars, values):
+    ax.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2, f'{val}%', va='center', fontsize=9)
+fig.savefig(filepath)
+plt.close()
+```
+
+**Vertical Bar with Labels (time series):**
+```python
+fig, ax = plt.subplots(figsize=(8, 5))
+bar_colors = ['#2ecc71' if v > 0 else '#e74c3c' for v in values]
+bars = ax.bar(labels, values, color=bar_colors, width=0.5)
+ax.set_ylabel('Return (%)')
+ax.set_title(title, pad=15)
+ax.axhline(y=0, color='#333', linewidth=0.5)
+for bar, val in zip(bars, values):
+    y_pos = bar.get_height() if val >= 0 else bar.get_height() - 1.5
+    ax.text(bar.get_x() + bar.get_width()/2, y_pos, f'{val:+.1f}%', ha='center', va='bottom' if val >= 0 else 'top', fontweight='bold')
+fig.savefig(filepath)
+plt.close()
+```
+
+**Heatmap (cross-market matrix):**
+```python
+import numpy as np
+fig, ax = plt.subplots(figsize=(12, 6))
+# Map text values to numbers: Strong=3, Moderate=2, Weak=1, Untested=0
+cmap = plt.cm.colors.ListedColormap(['#f0f0f0', '#e74c3c', '#f39c12', '#2ecc71'])
+im = ax.imshow(data_matrix, cmap=cmap, aspect='auto')
+# Add text labels in each cell
+for i in range(rows):
+    for j in range(cols):
+        ax.text(j, i, cell_text[i][j], ha='center', va='center', fontsize=9, fontweight='bold')
+ax.set_xticks(range(len(col_labels)))
+ax.set_xticklabels(col_labels, rotation=45, ha='right')
+ax.set_yticks(range(len(row_labels)))
+ax.set_yticklabels(row_labels)
+ax.set_title(title, pad=15)
+fig.savefig(filepath)
+plt.close()
+```
+
+**Multi-line Decay Curve:**
+```python
+fig, ax = plt.subplots(figsize=(10, 6))
+for label, rates, color in datasets:
+    years = np.arange(0, 13)
+    remaining = 100 * np.exp(-rate * years)  # Exponential decay
+    ax.plot(years, remaining, color=color, linewidth=2, label=label, marker='o', markersize=3)
+ax.set_xlabel('Years')
+ax.set_ylabel('Remaining Alpha (%)')
+ax.set_title(title, pad=15)
+ax.legend()
+ax.axhline(y=50, color='#999', linestyle='--', linewidth=0.5, label='50% threshold')
+ax.grid(True, alpha=0.3)
+fig.savefig(filepath)
+plt.close()
+```
+
+### Output
+
+Charts are saved to `.super/charts/` as PNGs at 150 DPI. The PDF generator receives chart file paths and embeds them at appropriate points in the document.
+
+```
+.super/
+  charts/
+    chart-01-momentum-ranking.png
+    chart-02-cta-returns.png
+    chart-03-cross-market-heatmap.png
+    chart-04-alpha-decay.png
+    ...
+  chart-specs.json
+```
+
+### When NOT to illustrate
+
+- Tables with <3 rows (too little data for a meaningful chart)
+- Tables that are purely textual (no numeric data)
+- Tables that are already well-served by tabular format (e.g., source lists)
+- When `no-illustrate` option is specified
 
 ---
 

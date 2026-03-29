@@ -29,6 +29,7 @@ Everything is persisted to `.super/` — surviving context resets, session bound
 | The router picks wrong capabilities | **Options** — `research`, `no-map`, `loops=5` to control exactly what runs |
 | Long tasks feel like a black box | **Streaming progress** — structured status updates at every milestone |
 | You don't know what it's about to do | **Execution plan** — shows exactly what will happen and waits for your OK |
+| Reports are walls of text and tables | **Illustrate** — auto-generates charts from data tables (bar charts, heatmaps, decay curves) |
 | Stale artifacts pile up | **Cleanup** — `/super clean` to archive or remove old work |
 
 ## Quick start
@@ -171,6 +172,8 @@ Force a capability **on** by name, or **off** with `no-` prefix.
 | `orchestrate` | Force ORCHESTRATE — parallel fan-out across independent subtasks | `/super orchestrate lint all 3 services` |
 | `no-orchestrate` | Handle everything sequentially, no parallel agents | `/super no-orchestrate audit the auth and payment services` |
 | `generate-cli` | Force GENERATE-CLI — schema-driven CLI tool creation | `/super generate-cli wrap the billing API` |
+| `illustrate` | Generate publication-quality charts from report tables (matplotlib, headless) | `/super illustrate research write a market analysis` |
+| `no-illustrate` | Skip chart generation even if data tables are present | `/super no-illustrate research quick summary` |
 
 #### Loop control
 
@@ -269,6 +272,26 @@ Reads your API schema (OpenAPI, GraphQL, Discovery docs) or source code and gene
 
 For 2+ independent tasks. Decomposes the work, dispatches one agent per task (each with its own MAP/PLAN/BUILD internally), collects results, and synthesizes.
 
+### ILLUSTRATE — Publication-quality charts
+
+When `illustrate` is used, /super generates charts from report data tables using matplotlib (headless, no display needed). Runs as a post-processing step after report content is written, before PDF generation.
+
+**What it produces:**
+
+| Data pattern | Chart type generated |
+|---|---|
+| Ranked items with scores | Horizontal bar chart with value labels |
+| Yearly/monthly returns | Vertical bar chart (green=positive, red=negative) |
+| Cross-category matrix (Strong/Weak) | Color-coded heatmap |
+| Values that decay over time | Multi-line curve plot |
+| Side-by-side comparisons | Grouped bar chart |
+
+Charts are saved to `.super/charts/` as PNGs at 150 DPI with a consistent institutional color scheme (dark navy, gold accents, green/amber/red confidence colors). The PDF generator embeds them inline with the report.
+
+```
+/super illustrate research write a market analysis report
+```
+
 ## Progress updates
 
 Structured single-line status updates during long-running work:
@@ -307,6 +330,8 @@ All work lives in `.super/` in your project directory:
   map-architecture.md # Architecture patterns
   map-quality.md      # Test coverage, CI/CD, conventions
   map-concerns.md     # Tech debt, security, performance
+  chart-specs.json    # ILLUSTRATE: chart data and type specifications
+  charts/             # ILLUSTRATE: generated PNG charts (150 DPI)
 ```
 
 This survives context resets. When `/super` is invoked, it reads `state.json` and resumes from where the previous session left off — skipping capabilities whose artifacts are still fresh.
@@ -334,6 +359,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v2.0.0
+
+- **`illustrate` option** — Generates publication-quality charts from report data tables using matplotlib (headless). Horizontal bar charts, vertical bar charts, heatmaps, multi-line decay curves. Consistent institutional color scheme. Saved as PNGs to `.super/charts/`, embedded in PDFs.
 
 ### v1.9.0
 
