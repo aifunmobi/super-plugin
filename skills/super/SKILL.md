@@ -344,7 +344,8 @@ All `/super` work is persisted to a `.super/` directory in the working directory
 ```
 .super/
   state.json          # Auto-maintained: capabilities, timestamps, map cache metadata, simple log
-  research.md         # RESEARCH output: stack, architecture, features, pitfalls, don't-hand-roll
+  research-raw.md     # RESEARCH phase 1: raw web search results (orchestrator-gathered)
+  research.md         # RESEARCH phase 2: synthesized report with confidence tags
   plan.md             # PLAN output: atomic tasks with waves, verification criteria, dependencies
   experiments.md      # EXPERIMENT output: baseline, hypothesis log, results table
   map-tech.md         # MAP output: stack analysis
@@ -448,21 +449,42 @@ Activated when there are unknowns, options to evaluate, or decisions to inform. 
 ```dot
 digraph research {
   rankdir=TB;
-  "Capture user constraints" -> "Dispatch 4 parallel researchers";
-  "Dispatch 4 parallel researchers" -> "Stack researcher";
-  "Dispatch 4 parallel researchers" -> "Architecture researcher";
-  "Dispatch 4 parallel researchers" -> "Features researcher";
-  "Dispatch 4 parallel researchers" -> "Pitfalls researcher";
-  "Stack researcher" -> "Synthesize findings";
-  "Architecture researcher" -> "Synthesize findings";
-  "Features researcher" -> "Synthesize findings";
-  "Pitfalls researcher" -> "Synthesize findings";
+  "Capture user constraints" -> "Orchestrator: parallel web searches (4 domains)";
+  "Orchestrator: parallel web searches (4 domains)" -> "Save raw results to .super/research-raw.md";
+  "Save raw results to .super/research-raw.md" -> "Dispatch 4 analysis agents (with pre-fetched data)";
+  "Dispatch 4 analysis agents (with pre-fetched data)" -> "Stack analyst";
+  "Dispatch 4 analysis agents (with pre-fetched data)" -> "Architecture analyst";
+  "Dispatch 4 analysis agents (with pre-fetched data)" -> "Features analyst";
+  "Dispatch 4 analysis agents (with pre-fetched data)" -> "Pitfalls analyst";
+  "Stack analyst" -> "Synthesize findings";
+  "Architecture analyst" -> "Synthesize findings";
+  "Features analyst" -> "Synthesize findings";
+  "Pitfalls analyst" -> "Synthesize findings";
   "Synthesize findings" -> "Quality gate: gaps?";
-  "Quality gate: gaps?" -> "Evolve strategy + re-research" [label="gaps > 30%"];
+  "Quality gate: gaps?" -> "Orchestrator: fill gaps with more searches" [label="gaps > 30%"];
   "Quality gate: gaps?" -> "Produce structured report" [label="sufficient"];
-  "Evolve strategy + re-research" -> "Synthesize findings";
+  "Orchestrator: fill gaps with more searches" -> "Synthesize findings";
 }
 ```
+
+### Important: Two-Phase Research Pattern
+
+**Sub-agents do NOT have web search access.** Only the orchestrator (main conversation) can use WebSearch. Therefore, research uses a two-phase pattern:
+
+**Phase 1 — Orchestrator gathers raw data (has WebSearch):**
+1. Formulate 4-8 parallel web searches covering all 4 research domains
+2. Execute all searches in a single message (parallel WebSearch calls)
+3. If the task involves codebase questions, also use Grep/Glob/Read
+4. Save raw search results to `.super/research-raw.md`
+
+**Phase 2 — Agents analyze and synthesize (have file access):**
+1. Dispatch 4 parallel agents, each given the raw search results + their domain focus
+2. Each agent analyzes, filters, cross-references, and produces structured findings
+3. Orchestrator merges the 4 agent outputs into the final research report
+
+**If re-research is needed** (gaps >30%), the orchestrator runs more web searches to fill the gaps, then dispatches agents again with the new data. The agents never search the web themselves.
+
+**For codebase-only research** (e.g., "how does our auth system work?"), agents CAN be dispatched directly since they have file/grep/glob access. The two-phase pattern is only needed when web search is involved.
 
 ### Step 1: Capture Constraints
 
@@ -471,18 +493,33 @@ Before researching, lock what's already decided:
 - **Areas of discretion** where research can recommend freely
 - **Out of scope** items to ignore
 
-### Step 2: Parallel 4-Domain Research
+### Step 2: Parallel Web Search (Orchestrator)
 
-Dispatch 4 parallel agents, each investigating one domain:
+The orchestrator runs parallel web searches covering all 4 research domains in a single message:
 
-| Agent | Investigates | Produces |
-|-------|-------------|----------|
-| **Stack** | Libraries, frameworks, versions, alternatives with tradeoffs, installation commands | Recommended stack with specific versions and "why standard" reasoning |
-| **Architecture** | Project structure, named patterns with conditions, code examples from official sources, anti-patterns to avoid | Architecture recommendation with real code from authoritative sources |
-| **Features** | What users expect (table stakes vs differentiators vs defer-to-v2), competitive landscape | Prioritized feature list: must-have, should-have, defer |
-| **Pitfalls** | What goes wrong, root causes, prevention strategies, warning signs for early detection | Pitfall list with "how to avoid" AND "how to detect early" |
+| Domain | Search queries to run | What to look for |
+|--------|----------------------|-----------------|
+| **Stack** | Technology options, library comparisons, version compatibility | Specific versions, benchmarks, tradeoffs |
+| **Architecture** | Design patterns, reference implementations, official docs | Code examples, best practices, anti-patterns |
+| **Features** | User expectations, competitive landscape, feature comparisons | Table stakes vs differentiators vs defer |
+| **Pitfalls** | Common failures, post-mortems, known issues | Root causes, prevention strategies, warning signs |
 
-### Step 3: Don't Hand-Roll Analysis (from GSD)
+Run 2-3 searches per domain (8-12 total) in parallel. Save all raw results to `.super/research-raw.md`.
+
+### Step 3: Parallel Analysis (4 Agents)
+
+Dispatch 4 agents, each given the full raw search results plus their domain focus:
+
+| Agent | Analyzes | Produces |
+|-------|----------|----------|
+| **Stack analyst** | Raw results for libraries, frameworks, versions | Recommended stack with specific versions and "why standard" reasoning |
+| **Architecture analyst** | Raw results for patterns, structures, examples | Architecture recommendation with real code from authoritative sources |
+| **Features analyst** | Raw results for user expectations, competition | Prioritized feature list: must-have, should-have, defer |
+| **Pitfalls analyst** | Raw results for failures, issues, warnings | Pitfall list with "how to avoid" AND "how to detect early" |
+
+Each agent prompt must include: (1) the raw search results, (2) the user's constraints, (3) the specific domain to focus on, (4) the output format expected.
+
+### Step 4: Don't Hand-Roll Analysis (from GSD)
 
 A critical output of research. Explicitly identify problems that *look simple but aren't*:
 
@@ -492,7 +529,7 @@ A critical output of research. Explicitly identify problems that *look simple bu
 
 This prevents custom implementations that introduce bugs and maintenance burden. Research identifies what experts DON'T build themselves.
 
-### Step 4: Synthesize + Quality Gate
+### Step 5: Synthesize + Quality Gate
 
 Merge findings across all 4 domains. Tag confidence per section:
 
@@ -504,7 +541,7 @@ Merge findings across all 4 domains. Tag confidence per section:
 
 If gaps > 30%, evolve strategy and loop (default max 2 iterations, or `loops=N` if set). Each iteration must reduce gaps or stop.
 
-### Step 5: Validation Architecture
+### Step 6: Validation Architecture
 
 Research also produces HOW to verify the implementation succeeded:
 - What tests prove the chosen approach works

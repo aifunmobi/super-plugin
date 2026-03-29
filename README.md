@@ -207,7 +207,7 @@ The backbone. Every non-trivial task goes through **discuss gray areas -> create
 
 ### RESEARCH — Expert-grade investigation
 
-Dispatches 4 parallel researchers (Stack, Architecture, Features, Pitfalls) that investigate your problem domain like senior engineers would. Produces confidence-tagged findings (`[HIGH]`/`[MEDIUM]`/`[LOW]`), a "don't hand-roll" list of things to use off-the-shelf, and a validation architecture for verifying the implementation.
+Two-phase process: the orchestrator runs parallel web searches across 4 domains (stack, architecture, features, pitfalls), then dispatches 4 analysis agents with the pre-fetched results. Produces confidence-tagged findings (`[HIGH]`/`[MEDIUM]`/`[LOW]`), a "don't hand-roll" list of things to use off-the-shelf, and a validation architecture for verifying the implementation.
 
 ### MAP — Understand before modifying
 
@@ -258,7 +258,8 @@ All work lives in `.super/` in your project directory:
 ```
 .super/
   state.json          # Session state, map cache, experiment tracking
-  research.md         # Research findings with confidence tags
+  research-raw.md     # Raw web search results (orchestrator-gathered)
+  research.md         # Synthesized research with confidence tags
   plan.md             # Verified atomic tasks with dependency waves
   experiments.md      # Full experiment journal across sessions
   map-tech.md         # Stack analysis
