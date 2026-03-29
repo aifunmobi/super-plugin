@@ -64,7 +64,19 @@ test('Two-phase research pattern documented', () => {
 });
 
 test('No old single-phase research pattern', () => {
-  assert(!SKILL.includes('Dispatch 4 parallel researchers'), 'Found old single-phase pattern — should be two-phase');
+  assert(!SKILL.includes('Dispatch 4 parallel researchers'), 'Found old single-phase research pattern');
+});
+
+test('Two-phase MAP pattern documented', () => {
+  assert(SKILL.includes('Two-Phase Codebase Mapping'), 'Missing two-phase MAP section header');
+  assert(SKILL.includes('map-raw.md'), 'Missing map-raw.md artifact');
+  assert(SKILL.includes('Tech analyst') || SKILL.includes('Tech analyst'), 'Missing Tech analyst in MAP Phase 2');
+});
+
+test('No old single-phase MAP pattern', () => {
+  // The old pattern just said "Dispatch up to 4 parallel agents" without a Phase 1/2 split
+  const mapSection = SKILL.split('## MAP')[1]?.split('## BUILD')[0] || '';
+  assert(mapSection.includes('Phase 1') && mapSection.includes('Phase 2'), 'MAP section missing Phase 1/2 structure');
 });
 
 test('Update meta-command documented', () => {

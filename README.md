@@ -216,9 +216,15 @@ Uses a proven two-phase pattern that was tested head-to-head against single-phas
 
 This two-phase approach exists because sub-agents don't have web search access (platform constraint). The result is actually better than if they did — separating data gathering from analysis produces more rigorous, cross-referenced output with independent quality checks per domain.
 
-### MAP — Understand before modifying
+### MAP — Understand before modifying (two-phase)
 
-4 parallel agents analyze your existing codebase across tech stack, architecture patterns, code quality, and concerns. Results are **cached with git SHA tracking** — subsequent runs only re-map what actually changed, saving significant time.
+Also uses the two-phase pattern:
+
+**Phase 1 — Orchestrator snapshots the codebase:** Reads package manifests, directory tree, entry points, config files, CI/CD setup, test config, README, and git history in a single parallel batch (~10-15 reads). Saves to `.super/map-raw.md`.
+
+**Phase 2 — 4 analysts receive the snapshot:** Tech, Architecture, Quality, and Concerns analysts each get the full snapshot and focus purely on their domain. No duplicated file reads — every agent has the same complete picture.
+
+Results are **cached with git SHA tracking** — subsequent runs only re-map what actually changed.
 
 ### BUILD — Multi-phase pipeline with quality gates
 
@@ -267,6 +273,7 @@ All work lives in `.super/` in your project directory:
   state.json          # Session state, map cache, experiment tracking
   research-raw.md     # Raw web search results (orchestrator-gathered)
   research.md         # Synthesized research with confidence tags
+  map-raw.md          # Raw codebase snapshot (orchestrator-gathered)
   plan.md             # Verified atomic tasks with dependency waves
   experiments.md      # Full experiment journal across sessions
   map-tech.md         # Stack analysis
@@ -300,6 +307,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v1.7.0
+
+- **Two-phase MAP** — Orchestrator snapshots the codebase (package manifest, directory tree, entry points, configs, CI/CD, tests, git history) in one parallel batch, then dispatches 4 analysis agents with the full snapshot. Eliminates duplicated file reads, gives every analyst the same complete picture.
 
 ### v1.6.0
 

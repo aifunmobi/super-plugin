@@ -346,6 +346,7 @@ All `/super` work is persisted to a `.super/` directory in the working directory
   state.json          # Auto-maintained: capabilities, timestamps, map cache metadata, simple log
   research-raw.md     # RESEARCH phase 1: raw web search results (orchestrator-gathered)
   research.md         # RESEARCH phase 2: synthesized report with confidence tags
+  map-raw.md          # MAP phase 1: raw codebase snapshot (orchestrator-gathered)
   plan.md             # PLAN output: atomic tasks with waves, verification criteria, dependencies
   experiments.md      # EXPERIMENT output: baseline, hypothesis log, results table
   map-tech.md         # MAP output: stack analysis
@@ -665,16 +666,45 @@ Before dispatching map agents, check if cached maps can be reused:
 **Announce reuse:** `"MAP: Reusing cached maps (3 files changed since last map, none affect architecture)"`
 **Announce partial:** `"MAP: Re-running Tech agent only (package.json changed, other maps still fresh)"`
 
-### Protocol
+### Protocol: Two-Phase Codebase Mapping
 
-Dispatch up to 4 parallel agents (or fewer for partial MAP):
+Like RESEARCH, MAP uses a two-phase pattern — orchestrator gathers, agents analyze. This prevents agents from duplicating effort (all 4 reading the same files) and produces deeper analysis since agents focus purely on their domain.
 
-| Agent | Focus |
-|-------|-------|
-| **Tech** | Stack, frameworks, dependencies, versions |
-| **Architecture** | Directory structure, patterns, data flow |
-| **Quality** | Test coverage, lint config, CI/CD, conventions |
-| **Concerns** | Tech debt, security issues, performance risks |
+**Phase 1 — Orchestrator gathers codebase snapshot:**
+
+Run these in parallel (single message, multiple tool calls):
+
+| What to gather | How | Saves to |
+|---|---|---|
+| Directory tree (2 levels deep) | `find . -maxdepth 2 -type f \| head -100` | `.super/map-raw.md` |
+| Package manifest | Read `package.json`, `Cargo.toml`, `go.mod`, `requirements.txt`, etc. | `.super/map-raw.md` |
+| Lock file summary | `wc -l` on lock files, list top 20 deps | `.super/map-raw.md` |
+| Entry points | Read `src/index.*`, `src/main.*`, `app.*`, `server.*` | `.super/map-raw.md` |
+| Config files | Read `tsconfig.json`, `.eslintrc*`, `vite.config.*`, `next.config.*`, etc. | `.super/map-raw.md` |
+| CI/CD config | Read `.github/workflows/*`, `Dockerfile`, `.gitlab-ci.yml` | `.super/map-raw.md` |
+| Test setup | Read `jest.config.*`, `vitest.config.*`, `pytest.ini`, test directory structure | `.super/map-raw.md` |
+| README / docs | Read `README.md`, `CLAUDE.md`, `CONTRIBUTING.md` | `.super/map-raw.md` |
+| Git summary | `git log --oneline -20`, `git shortlog -sn --no-merges \| head -10` | `.super/map-raw.md` |
+| Env template | Read `.env.example`, `.env.template` (NOT `.env`) | `.super/map-raw.md` |
+
+This should take ~10-15 tool calls in a single parallel batch. Save everything to `.super/map-raw.md`.
+
+**Phase 2 — 4 analysis agents receive the snapshot:**
+
+Dispatch 4 parallel agents, each given the FULL contents of `.super/map-raw.md` plus their domain focus:
+
+| Agent | Focus | What they analyze from the snapshot | Produces |
+|---|---|---|---|
+| **Tech analyst** | Stack, frameworks, deps, versions | Package manifest, lock files, config files | Tech stack summary, version risks, dependency health |
+| **Architecture analyst** | Structure, patterns, data flow | Directory tree, entry points, README | Architecture patterns, data flow diagram, anti-patterns found |
+| **Quality analyst** | Tests, CI/CD, conventions | Test setup, CI config, lint config, git history | Test coverage assessment, CI pipeline analysis, code convention guide |
+| **Concerns analyst** | Tech debt, security, performance | All of the above, with focus on red flags | Risk inventory, security concerns, performance bottlenecks |
+
+Each agent prompt must include: (1) the full raw snapshot, (2) their specific domain, (3) the output format (structured markdown with sections).
+
+**Phase 2 output:** Each agent writes its findings to `.super/map-tech.md`, `.super/map-architecture.md`, `.super/map-quality.md`, `.super/map-concerns.md`.
+
+**For partial MAP** (staleness detection triggered partial re-map), only dispatch the affected agents but still give them the full raw snapshot for context.
 
 ### Output feeds into PLAN and BUILD
 
