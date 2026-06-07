@@ -58,44 +58,8 @@ mkdir -p "$REFRESH_DIR"
 ln -sf "$PLUGIN_DIR/skills/refresh/SKILL.md" "$REFRESH_DIR/SKILL.md"
 echo "  Linked /refresh skill -> $REFRESH_DIR/SKILL.md -> repo"
 
-# Symlink hooks
-ln -sf "$PLUGIN_DIR/hooks/super-plan-guard.js" "$HOOKS_DIR/super-plan-guard.js"
-ln -sf "$PLUGIN_DIR/hooks/super-research-tracker.js" "$HOOKS_DIR/super-research-tracker.js"
-ln -sf "$PLUGIN_DIR/hooks/super-session-start.js" "$HOOKS_DIR/super-session-start.js"
-echo "  Linked hooks -> $HOOKS_DIR/ -> repo"
-
-# Register hooks in settings.json (idempotent — adds only what's missing).
-# super is distributed via symlinks + settings.json (not a marketplace plugin),
-# so settings.json is the registration path that actually fires. The bundled
-# hooks/hooks.json mirrors these for anyone who installs super as a true plugin.
-[ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
-node - "$SETTINGS" <<'NODEEOF'
-const fs = require('fs');
-const f = process.argv[2];
-let s = {};
-try { s = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { s = {}; }
-s.hooks = s.hooks || {};
-
-// Add a hook entry only if no entry already references this hook file.
-function ensure(event, matcher, file, timeout) {
-  s.hooks[event] = s.hooks[event] || [];
-  const has = s.hooks[event].some(g => (g.hooks || []).some(h => (h.command || '').includes(file)));
-  if (has) return false;
-  const entry = { hooks: [{ type: 'command', command: 'node "$HOME/.claude/hooks/' + file + '"', timeout }] };
-  if (matcher) entry.matcher = matcher;
-  s.hooks[event].push(entry);
-  return true;
-}
-
-const added = [];
-if (ensure('SessionStart', 'startup|clear|compact', 'super-session-start.js', 5)) added.push('session-start');
-if (ensure('PreToolUse',  'Write|Edit',            'super-plan-guard.js',     3)) added.push('plan-guard');
-if (ensure('PostToolUse', 'Write',                 'super-research-tracker.js', 5)) added.push('research-tracker');
-
-fs.writeFileSync(f, JSON.stringify(s, null, 2));
-console.log(added.length ? '  Registered hooks in settings.json: ' + added.join(', ')
-                         : '  Hooks already registered in settings.json');
-NODEEOF
+# Symlink + register hooks (shared with /super update — idempotent).
+bash "$PLUGIN_DIR/install-hooks.sh"
 
 echo ""
 echo "  Done! v$VERSION installed."

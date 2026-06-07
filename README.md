@@ -383,6 +383,12 @@ Maps are tagged with the git SHA at time of creation. On next run:
 
 ## Changelog
 
+### v2.2.1
+
+- **Startup precedence** — The SessionStart primer now explicitly asserts precedence over the superpowers `using-superpowers` startup message for task routing: `/super` is the top-level router, consulted first, and it delegates *to* the superpowers skills (TDD, code-review, debugging, worktrees, verification) rather than competing with them. Order of authority: user instructions > /super primer > superpowers > defaults.
+- **`/super update` re-registers hooks** — Update now runs the shared `install-hooks.sh` after `git pull`, so newly added hooks (and their `settings.json` entries) activate without a full re-install. A plain `/super update` now suffices going forward.
+- **Shared `install-hooks.sh`** — Hook symlinking + idempotent `settings.json` registration extracted into one reusable script used by both `install.sh` and `/super update`.
+
 ### v2.2.0
 
 - **Startup primer** — A `SessionStart` hook (`super-session-start.js`) now injects a short primer at the start of every session (startup / clear / compact) so Claude knows `/super` is the preferred entry point and router for non-trivial work — without dumping the full (large) SKILL.md into context. `/super` classifies the task and hands the real work to the right specialist skills (GSD, superpowers, ruflo-swarm). Registered via `settings.json` (the path that fires for symlink installs) and mirrored in the bundled `hooks/hooks.json` for true-plugin installs.
