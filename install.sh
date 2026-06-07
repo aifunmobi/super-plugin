@@ -61,90 +61,41 @@ echo "  Linked /refresh skill -> $REFRESH_DIR/SKILL.md -> repo"
 # Symlink hooks
 ln -sf "$PLUGIN_DIR/hooks/super-plan-guard.js" "$HOOKS_DIR/super-plan-guard.js"
 ln -sf "$PLUGIN_DIR/hooks/super-research-tracker.js" "$HOOKS_DIR/super-research-tracker.js"
+ln -sf "$PLUGIN_DIR/hooks/super-session-start.js" "$HOOKS_DIR/super-session-start.js"
 echo "  Linked hooks -> $HOOKS_DIR/ -> repo"
 
-# Patch settings.json to register hooks
-if [ -f "$SETTINGS" ]; then
-  if grep -q "super-plan-guard" "$SETTINGS" 2>/dev/null; then
-    echo "  Hooks already registered in settings.json"
-  else
-    node -e "
+# Register hooks in settings.json (idempotent — adds only what's missing).
+# super is distributed via symlinks + settings.json (not a marketplace plugin),
+# so settings.json is the registration path that actually fires. The bundled
+# hooks/hooks.json mirrors these for anyone who installs super as a true plugin.
+[ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
+node - "$SETTINGS" <<'NODEEOF'
 const fs = require('fs');
-const settings = JSON.parse(fs.readFileSync('$SETTINGS', 'utf8'));
+const f = process.argv[2];
+let s = {};
+try { s = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { s = {}; }
+s.hooks = s.hooks || {};
 
-if (!settings.hooks) settings.hooks = {};
-if (!settings.hooks.PreToolUse) settings.hooks.PreToolUse = [];
-if (!settings.hooks.PostToolUse) settings.hooks.PostToolUse = [];
-
-const existingPre = settings.hooks.PreToolUse.find(h => h.matcher === 'Write|Edit');
-if (existingPre) {
-  if (!existingPre.hooks) existingPre.hooks = [];
-  if (!existingPre.hooks.some(h => h.command && h.command.includes('super-plan-guard'))) {
-    existingPre.hooks.push({
-      type: 'command',
-      command: 'node \"\$HOME/.claude/hooks/super-plan-guard.js\"',
-      timeout: 3
-    });
-  }
-} else {
-  settings.hooks.PreToolUse.push({
-    matcher: 'Write|Edit',
-    hooks: [{
-      type: 'command',
-      command: 'node \"\$HOME/.claude/hooks/super-plan-guard.js\"',
-      timeout: 3
-    }]
-  });
+// Add a hook entry only if no entry already references this hook file.
+function ensure(event, matcher, file, timeout) {
+  s.hooks[event] = s.hooks[event] || [];
+  const has = s.hooks[event].some(g => (g.hooks || []).some(h => (h.command || '').includes(file)));
+  if (has) return false;
+  const entry = { hooks: [{ type: 'command', command: 'node "$HOME/.claude/hooks/' + file + '"', timeout }] };
+  if (matcher) entry.matcher = matcher;
+  s.hooks[event].push(entry);
+  return true;
 }
 
-if (!settings.hooks.PostToolUse.some(h => h.hooks && h.hooks.some(hh => hh.command && hh.command.includes('super-research-tracker')))) {
-  settings.hooks.PostToolUse.push({
-    matcher: 'Write',
-    hooks: [{
-      type: 'command',
-      command: 'node \"\$HOME/.claude/hooks/super-research-tracker.js\"',
-      timeout: 5
-    }]
-  });
-}
+const added = [];
+if (ensure('SessionStart', 'startup|clear|compact', 'super-session-start.js', 5)) added.push('session-start');
+if (ensure('PreToolUse',  'Write|Edit',            'super-plan-guard.js',     3)) added.push('plan-guard');
+if (ensure('PostToolUse', 'Write',                 'super-research-tracker.js', 5)) added.push('research-tracker');
 
-fs.writeFileSync('$SETTINGS', JSON.stringify(settings, null, 2));
-"
-    echo "  Registered hooks in settings.json"
-  fi
-else
-  cat > "$SETTINGS" << 'SETTINGSEOF'
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$HOME/.claude/hooks/super-plan-guard.js\"",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$HOME/.claude/hooks/super-research-tracker.js\"",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
-}
-SETTINGSEOF
-  echo "  Created settings.json with hooks"
-fi
+fs.writeFileSync(f, JSON.stringify(s, null, 2));
+console.log(added.length ? '  Registered hooks in settings.json: ' + added.join(', ')
+                         : '  Hooks already registered in settings.json');
+NODEEOF
 
 echo ""
 echo "  Done! v$VERSION installed."
@@ -152,6 +103,7 @@ echo ""
 echo "  Files (symlinked to repo — git pull to update):"
 echo "    ~/.claude/skills/super/SKILL.md       (/super)"
 echo "    ~/.claude/skills/refresh/SKILL.md     (/refresh)"
+echo "    ~/.claude/hooks/super-session-start.js   (/super primer at startup)"
 echo "    ~/.claude/hooks/super-plan-guard.js"
 echo "    ~/.claude/hooks/super-research-tracker.js"
 echo "    ~/.claude/settings.json (hooks registered)"

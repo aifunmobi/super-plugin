@@ -1,6 +1,18 @@
 {
-  "description": "Super plugin enforcement hooks: plan guard (no code without plan) and research tracker (artifact persistence + quality validation)",
+  "description": "Super plugin hooks: session-start primer (/super router available), plan guard (no code without plan), and research tracker (artifact persistence + quality validation)",
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/super-session-start.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Write|Edit",

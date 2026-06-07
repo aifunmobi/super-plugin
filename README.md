@@ -383,6 +383,12 @@ Maps are tagged with the git SHA at time of creation. On next run:
 
 ## Changelog
 
+### v2.2.0
+
+- **Startup primer** — A `SessionStart` hook (`super-session-start.js`) now injects a short primer at the start of every session (startup / clear / compact) so Claude knows `/super` is the preferred entry point and router for non-trivial work — without dumping the full (large) SKILL.md into context. `/super` classifies the task and hands the real work to the right specialist skills (GSD, superpowers, ruflo-swarm). Registered via `settings.json` (the path that fires for symlink installs) and mirrored in the bundled `hooks/hooks.json` for true-plugin installs.
+- **Install one-liner** — Switched to the portable `curl -fsSL … | bash` form (works under `sh`/`dash`, not just bash/zsh process substitution).
+- **Idempotent hook registration** — `install.sh` now adds only the hook entries that are missing (per-hook check) instead of skipping all registration when one already exists, so updates pick up new hooks. Hook commands use absolute `$HOME` paths.
+
 ### v2.1.0
 
 - **DEBUG capability** — Systematic, hypothesis-driven root-cause investigation with state persisted to `.super/debug.md` (survives context resets). From superpowers (systematic-debugging) + GSD (gsd-debug). New `debug` option; plan guard suppressed during pure debug.
