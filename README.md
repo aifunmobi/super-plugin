@@ -383,6 +383,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 
 ## Changelog
 
+### v2.3.2
+
+- **Fix: Codex skill/prompt now installed as real copies, not symlinks.** Codex's skill and prompt scanner only accepts regular files and silently skips symlinks, so the v2.3.0–2.3.1 symlinked skill and `/super` prompt were never loaded (`/super` showed "Unrecognized command"). `install-codex.sh` now copies the files (re-copied on every `/super update`, so they stay current). Restart Codex after updating.
+
 ### v2.3.1
 
 - **Codex `/super` slash-command shim** — `install-codex.sh` now also symlinks a thin `~/.codex/prompts/super.md` that activates the super skill on the supplied request (`$ARGUMENTS`), giving Codex an explicit `/super` command alongside skill auto-activation. (Codex marks custom prompts deprecated in favor of skills, so the skill remains the primary path; this is belt-and-suspenders.)

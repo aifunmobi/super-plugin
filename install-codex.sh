@@ -2,8 +2,10 @@
 # Super plugin — Codex (CLI + desktop app) setup.
 #
 # Makes OpenAI Codex use /super, kept in sync from this one repo:
-#   - Symlinks the super SKILL.md into ~/.codex/skills/super (Codex auto-discovers
-#     skills there; a symlink means `git pull` / `/super update` updates it too).
+#   - Installs the super SKILL.md and a /super prompt as REAL COPIES under
+#     ~/.codex (Codex's skill/prompt scanner only accepts regular files and
+#     skips symlinks). This script runs on every /super update, re-copying the
+#     latest content, so the copies stay in sync with the repo.
 #   - Injects a managed "super primer" block into ~/.codex/AGENTS.md so Codex
 #     treats /super as the preferred top-level router at the start of every
 #     session (covers the CLI and the desktop app, which read global AGENTS.md).
@@ -24,29 +26,26 @@ if [ ! -d "$CODEX_DIR" ]; then
   exit 0
 fi
 
-# 1. Skill — symlink to the repo (single source of truth, auto-updates on pull).
+# 1. Skill — install a REAL COPY (Codex skips symlinked skill files).
 CODEX_SKILL_DIR="$CODEX_DIR/skills/super"
 mkdir -p "$CODEX_SKILL_DIR"
 TARGET="$CODEX_SKILL_DIR/SKILL.md"
 SRC="$PLUGIN_DIR/skills/super/SKILL.md"
-if [ -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
-  mv "$TARGET" "$TARGET.bak.$(date +%s)"   # preserve any old copy once
-fi
-ln -sf "$SRC" "$TARGET"
-echo "  Linked Codex /super skill -> $TARGET -> repo"
+rm -f "$TARGET"            # clear any prior copy OR stale symlink
+cp "$SRC" "$TARGET"
+echo "  Installed Codex /super skill -> $TARGET (copy of repo)"
 
 # 1b. Slash-command shim — a thin /super prompt that activates the skill.
-# Codex scans only top-level .md files in ~/.codex/prompts. (Custom prompts are
-# deprecated in favor of skills, but this keeps an explicit /super command.)
+# Codex scans only top-level *real* .md files in ~/.codex/prompts (symlinks are
+# skipped). Custom prompts are deprecated in favor of skills, but this keeps an
+# explicit /super command available.
 CODEX_PROMPTS_DIR="$CODEX_DIR/prompts"
 mkdir -p "$CODEX_PROMPTS_DIR"
 PROMPT_TARGET="$CODEX_PROMPTS_DIR/super.md"
 PROMPT_SRC="$PLUGIN_DIR/codex/prompts/super.md"
-if [ -e "$PROMPT_TARGET" ] && [ ! -L "$PROMPT_TARGET" ]; then
-  mv "$PROMPT_TARGET" "$PROMPT_TARGET.bak.$(date +%s)"
-fi
-ln -sf "$PROMPT_SRC" "$PROMPT_TARGET"
-echo "  Linked Codex /super prompt -> $PROMPT_TARGET -> repo"
+rm -f "$PROMPT_TARGET"     # clear any prior copy OR stale symlink
+cp "$PROMPT_SRC" "$PROMPT_TARGET"
+echo "  Installed Codex /super prompt -> $PROMPT_TARGET (copy of repo)"
 
 # 2. AGENTS.md primer — managed block, inserted/updated between markers.
 AGENTS="$CODEX_DIR/AGENTS.md"
