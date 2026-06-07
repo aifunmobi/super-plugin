@@ -1,6 +1,6 @@
 #!/bin/bash
 # Super Plugin Installer for Claude Code
-# Usage: bash <(curl -s https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh)
+# Usage: curl -fsSL https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh | bash
 
 set -e
 

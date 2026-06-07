@@ -35,7 +35,7 @@ Everything is persisted to `.super/` — surviving context resets, session bound
 ## Quick start
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh)
+curl -fsSL https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh | bash
 ```
 
 That's it. Restart Claude Code and start using `/super`.

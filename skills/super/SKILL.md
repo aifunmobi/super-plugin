@@ -45,7 +45,7 @@ Checks GitHub for a newer version and self-updates.
 Your /super installation was copied, not cloned — can't pull updates.
 Run this to switch to an updatable install:
 
-  bash <(curl -s https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh)
+  curl -fsSL https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh | bash
 ```
 
 **Output format:**
