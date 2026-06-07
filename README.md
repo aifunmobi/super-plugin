@@ -40,6 +40,30 @@ curl -fsSL https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install
 
 That's it. Restart Claude Code and start using `/super`.
 
+### OpenAI Codex setup
+
+If OpenAI Codex is installed (`~/.codex` exists), the installer also runs `install-codex.sh`. Codex does not read the Claude skill symlink at `~/.claude/skills/super/SKILL.md`; it scans Codex-specific paths instead.
+
+`install-codex.sh` writes these Codex files as regular files, not symlinks:
+
+| Path | Purpose |
+|---|---|
+| `~/.codex/skills/super/SKILL.md` | Codex-discovered `super` skill |
+| `~/.codex/prompts/super.md` | Thin `/super` slash-command prompt that activates the skill |
+| `~/.codex/AGENTS.md` | Managed primer that makes `/super` the preferred router for non-trivial tasks |
+
+Codex skill and prompt scanners skip symlinked files, so the Codex install uses real copies. Those copies are refreshed on fresh install and on `/super update`. Start a new Codex thread/session after installing or updating so the skill inventory is rebuilt.
+
+Verify the local Codex install:
+
+```bash
+ls -l ~/.codex/skills/super/SKILL.md ~/.codex/prompts/super.md
+grep version ~/.claude/plugins/marketplaces/local/plugins/super/.claude-plugin/plugin.json
+codex debug prompt-input 2>&1 | grep 'super:'
+```
+
+Both `ls -l` entries should start with `-rw-`, not `lrwx`.
+
 <details>
 <summary>Other install methods</summary>
 
@@ -77,6 +101,8 @@ From inside Claude Code:
 ```
 
 Checks GitHub for a newer version, shows what changed, and updates in place. No re-install needed.
+
+When Codex is present, `/super update` also reruns `install-codex.sh`, refreshing `~/.codex/skills/super/SKILL.md`, `~/.codex/prompts/super.md`, and the managed block in `~/.codex/AGENTS.md`.
 
 ### Bonus: /refresh (universal project publish)
 
@@ -382,6 +408,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v2.3.3
+
+- **Docs: Codex setup paths and real-copy behavior.** README and `/super update` docs now spell out the Codex-scanned files (`~/.codex/skills/super/SKILL.md`, `~/.codex/prompts/super.md`, `~/.codex/AGENTS.md`), clarify that Codex does not scan `~/.claude/skills` directly, and add lint coverage to prevent reverting to stale symlink wording.
 
 ### v2.3.2
 

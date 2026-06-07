@@ -97,6 +97,12 @@ test('Update meta-command documented', () => {
   assert(SKILL.includes('Update to v'), 'Missing update output example');
 });
 
+test('Codex update docs say real copies, not symlinks', () => {
+  const updateSection = SKILL.split('### `/super update`')[1]?.split('### `/super dry')[0] || '';
+  assert(updateSection.includes('real copies') || updateSection.includes('REAL COPIES'), 'Codex update docs do not mention real copies');
+  assert(!/refreshes the symlinked `\/super` skill/.test(updateSection), 'Codex update docs still say symlinked skill');
+});
+
 test('Execution plan section exists', () => {
   assert(SKILL.includes('Proceed? [Y/n]'), 'Missing confirmation prompt');
 });
@@ -137,6 +143,18 @@ test('No old +/- flags in README (before changelog)', () => {
 
 test('Install URL uses main branch', () => {
   assert(README.includes('aifunmobi/super-plugin/main/install.sh'), 'Not using main branch');
+});
+
+test('README documents Codex real-copy install paths', () => {
+  assert(README.includes('~/.codex/skills/super/SKILL.md'), 'Missing Codex skill path');
+  assert(README.includes('~/.codex/prompts/super.md'), 'Missing Codex prompt path');
+  assert(README.includes('~/.codex/AGENTS.md'), 'Missing Codex AGENTS path');
+  assert(README.includes('real copies') || README.includes('regular files'), 'README does not explain Codex files are copies/regular files');
+});
+
+test('README does not describe active Codex installs as symlinks', () => {
+  assert(!README_BEFORE_CHANGELOG.includes('symlinks the super `SKILL.md` into `~/.codex/skills/super`'), 'README still says Codex skill is symlinked');
+  assert(!README_BEFORE_CHANGELOG.includes('symlinks a thin `~/.codex/prompts/super.md`'), 'README still says Codex prompt is symlinked');
 });
 
 test('All capabilities mentioned', () => {
