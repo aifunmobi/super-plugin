@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// super-hook-version: 1.1.0
+// super-hook-version: 1.2.0
 // /super Research & Artifact Tracker — PostToolUse hook
 //
 // Monitors .super/ artifact writes and tracks workflow state.
@@ -21,6 +21,8 @@ const { execSync } = require('child_process');
 const ARTIFACTS = {
   'research.md': { required: ['[HIGH]', '[MEDIUM]', '[LOW]'], label: 'confidence tags' },
   'plan.md': { required: ['Verify:', 'Dependencies:'], label: 'verification criteria and dependencies' },
+  'debug.md': { required: ['Reproduction', 'Hypothes', 'Root Cause'], label: 'reproduction, hypothesis log, and root cause' },
+  'review.md': { required: ['Severity'], label: 'severity-tagged findings' },
   'experiments.md': { required: ['Baseline', 'Hypothesis', 'Current Best'], label: 'baseline, hypothesis, and current best tracking' },
   'map.md': { required: [], label: null },
   'map-tech.md': { required: [], label: null },
@@ -88,6 +90,8 @@ process.stdin.on('end', () => {
     const caps = new Set(state.capabilities_activated || []);
     if (fileName === 'research.md') caps.add('RESEARCH');
     if (fileName === 'plan.md') caps.add('PLAN');
+    if (fileName === 'debug.md') caps.add('DEBUG');
+    if (fileName === 'review.md') caps.add('REVIEW');
     if (fileName === 'experiments.md') caps.add('EXPERIMENT');
     if (fileName.startsWith('map')) caps.add('MAP');
     state.capabilities_activated = [...caps];

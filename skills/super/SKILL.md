@@ -1,6 +1,6 @@
 ---
 name: super
-description: Use when tackling any task from trivial to ambitious - autonomously classifies complexity, supports +/- capability overrides, caches map results incrementally, and activates the right combination of research, planning, building, experimentation, orchestration, and codebase mapping sub-skills without requiring explicit sub-commands
+description: Use when tackling any task from trivial to ambitious - autonomously classifies complexity, supports +/- capability overrides, caches map results incrementally, and activates the right combination of research, planning, building, debugging, code review, TDD, experimentation, orchestration, and codebase mapping sub-skills without requiring explicit sub-commands
 ---
 
 # Super - Autonomous Task Engine
@@ -81,13 +81,17 @@ Router decision:
   SIMPLE:       no  (task involves architectural decisions)
   MAP:          yes (existing codebase detected)
   RESEARCH:     no  (no unknowns — caching approach is well-known)
+  DEBUG:        no  (nothing broken — additive feature)
   PLAN:         yes (always on for code tasks)
   BUILD:        yes (creating/modifying code)
+  TDD:          no  (not forced; router default)
+  REVIEW:       yes (post-BUILD code-review gate, on by default)
   EXPERIMENT:   no  (not optimizing)
   GENERATE-CLI: no  (not wrapping an API)
   ORCHESTRATE:  no  (single task)
+  WORKTREES:    no  (single agent, no parallel file writes)
 
-Activation order: MAP -> PLAN -> BUILD
+Activation order: MAP -> PLAN -> BUILD -> REVIEW
 
 Map cache: fresh (2 files changed since last map, partial re-map of Tech only)
 
@@ -121,6 +125,7 @@ digraph router {
   "Classify task signals" -> "PLAN (always for code tasks)";
   "Classify task signals" -> "RESEARCH (if unknowns exist)";
   "Classify task signals" -> "MAP (if existing codebase)";
+  "Classify task signals" -> "DEBUG (if diagnosing a bug/error)";
   "Classify task signals" -> "BUILD (if creating/modifying code)";
   "Classify task signals" -> "EXPERIMENT (if optimizing/comparing)";
   "Classify task signals" -> "GENERATE-CLI (if wrapping API/tool)";
@@ -150,11 +155,19 @@ All options are plain words — no `+`, `-`, or `--` prefixes.
 | `no-plan` | Force PLAN off (use with caution) |
 | `orchestrate` | Force ORCHESTRATE on |
 | `no-orchestrate` | Force ORCHESTRATE off |
+| `debug` | Force DEBUG (systematic root-cause investigation) |
+| `tdd` | Force TDD discipline in BUILD (red → green → refactor) |
+| `no-tdd` | Disable TDD even if the router suggests it |
+| `no-review` | Skip the post-BUILD code-review gate |
+| `worktrees` | Force git worktree isolation for parallel/orchestrated work |
+| `no-worktrees` | Disable worktree isolation (run parallel agents in place) |
 | `generate-cli` | Force GENERATE-CLI on |
 | `simple` | Force SIMPLE mode (skip all heavyweight capabilities) |
 | `no-simple` | Force full routing even for trivial-looking tasks |
 | `loops=N` | Set max iterations for all loops (0 = single-pass, no iteration) |
 | `illustrate` | Generate publication-quality charts from report data tables (matplotlib, headless) |
+| `plain-pdf` / `no-polished-pdf` | Skip the default institutional PDF style; produce a plain document instead |
+| `polished-pdf` | Force the institutional PDF style on (rarely needed — it's the default) |
 | `dry` | Dry run — show routing decisions without executing |
 | `clean` | Archive or remove `.super/` artifacts |
 
@@ -166,6 +179,9 @@ All options are plain words — no `+`, `-`, or `--` prefixes.
 /super dry add authentication to this Express app
 /super experiment no-map loops=3 optimize the search endpoint
 /super illustrate research write a report on market trends
+/super debug the checkout endpoint returns 500 intermittently
+/super tdd add a rate limiter to the API
+/super no-worktrees orchestrate audit all 5 services
 /super clean
 ```
 
@@ -176,6 +192,8 @@ All options are plain words — no `+`, `-`, or `--` prefixes.
 | Research re-research | 2 | RESEARCH gap-filling iterations |
 | Plan verification | 2 | PLAN revision loops before escalating to user |
 | Experiment hypotheses | 3 | EXPERIMENT iterations per session |
+| Debug hypotheses | 3 | DEBUG hypothesis → test cycles |
+| Review fix loops | 2 | REVIEW gate → fix iterations before deliver |
 
 When `loops=N` is provided, all loop types use N as their max.
 
@@ -233,6 +251,7 @@ Read the user's request and activate capabilities based on these signals. **Mult
 | Any task involving code changes | **PLAN** (always) | GSD backbone: discuss gray areas, create verified atomic tasks, wave-based execution |
 | Unknowns, options to evaluate, "which/what/how should we" | **RESEARCH** | Need information before committing to an approach |
 | Working in an existing codebase the agent hasn't mapped | **MAP** | Must understand what exists before modifying it |
+| "Bug", "error", "crash", "failing test", "not working", "regression", unexpected behavior | **DEBUG** | Systematic root-cause investigation before any fix |
 | Creating features, fixing bugs, building systems | **BUILD** | Multi-phase pipeline with quality gates |
 | "Faster", "optimize", "improve", "try different approaches" | **EXPERIMENT** | Scientific iteration loop with keep/discard tracking |
 | "Wrap this API", "make a CLI for", "scriptable interface" | **GENERATE-CLI** | Auto-generate CLI from schema/source |
@@ -245,6 +264,8 @@ Read the user's request and activate capabilities based on these signals. **Mult
 | "Fix the typo in README.md" | **SIMPLE** | Direct fix, no pipeline |
 | "Rename getUserData to fetchUserData" | **SIMPLE** | Direct rename, commit |
 | "Change the timeout from 30s to 60s" | **SIMPLE** | Direct config change |
+| "The checkout endpoint returns 500 intermittently" | **DEBUG** (-> PLAN -> BUILD if fix is non-trivial) | Reproduce, isolate root cause, then fix |
+| "Tests pass locally but fail in CI" | **DEBUG** | Hypothesis-driven investigation with persistent state |
 | "Add user authentication to this app" | MAP -> PLAN -> BUILD | Map codebase, plan with gray-area discussion, build through phases |
 | "What's the best database for our use case?" | RESEARCH | Iterative research with parallel agents |
 | "Build a notification system" | MAP -> RESEARCH -> PLAN -> BUILD | Map existing code, research approaches, plan, then build |
@@ -262,6 +283,7 @@ Read the user's request and activate capabilities based on these signals. **Mult
 ### When in doubt
 
 - If the task is trivial and unambiguous: **SIMPLE** — just do it.
+- If something is broken (bug, error, failing test, regression): **DEBUG first** — find the root cause before changing any code.
 - If the task changes code and isn't trivial: **PLAN is always on.** No code without a verified plan.
 - If there's an existing codebase: **MAP first** (unless already mapped this session or maps are fresh).
 - If you're unsure about the right approach: **RESEARCH before PLAN.**
@@ -350,6 +372,8 @@ All `/super` work is persisted to a `.super/` directory in the working directory
   research.md         # RESEARCH phase 2: synthesized report with confidence tags
   map-raw.md          # MAP phase 1: raw codebase snapshot (orchestrator-gathered)
   plan.md             # PLAN output: atomic tasks with waves, verification criteria, dependencies
+  debug.md            # DEBUG output: reproduction, hypothesis log, root cause, fix verification
+  review.md           # REVIEW output: code-review findings by severity, resolution status
   experiments.md      # EXPERIMENT output: baseline, hypothesis log, results table
   map-tech.md         # MAP output: stack analysis
   map-architecture.md # MAP output: architecture analysis
@@ -371,6 +395,7 @@ When `/super` activates, check for existing `.super/` directory:
 2. For MAP artifacts, run staleness detection (see MAP section) — don't blindly reuse stale maps
 3. Skip other capabilities whose artifacts already exist (e.g., don't re-RESEARCH if `research.md` exists and the task hasn't changed)
 4. Resume from where the previous session left off
+5. **If ruflo-rag-memory is available**, additionally recall related prior artifacts by semantic search — not just exact-filename reuse — so relevant past research/maps/debug findings surface even when the current task is phrased differently
 
 ### Enforcement Hooks (registered in settings.json)
 
@@ -386,6 +411,8 @@ When `/super` activates, check for existing `.super/` directory:
 The research tracker hook checks that artifacts contain expected markers:
 - **research.md** must contain confidence tags (`[HIGH]`, `[MEDIUM]`, `[LOW]`)
 - **plan.md** must contain `Verify:` and `Dependencies:` markers
+- **debug.md** must contain `Reproduction`, `Hypothes`(is), and `Root Cause` markers
+- **review.md** must contain `Severity` markers
 - **experiments.md** must contain `Baseline` and `Hypothesis` markers
 
 If markers are missing, an advisory warning is injected so the agent can fix the artifact.
@@ -730,7 +757,45 @@ Activated when creating or modifying code. Always preceded by PLAN.
 | 4. Test | Test suite passing | Acceptance criteria covered |
 | 5. Refine | Gap analysis: spec vs result | No gaps or gaps documented |
 | 6. Document | Only if user requests | -- |
-| 7. Deliver | Final summary | User confirms |
+| 7. Deliver | Final summary + **verification** | Ran the artifact, observed it work |
+
+### TDD Mode (when `tdd` option active)
+
+**From: superpowers (test-driven-development) + GSD (opt-in `tdd_mode`)**
+
+When `tdd` is set (or the work is test-critical and the router suggests it), Phases 3–4 invert into **red → green → refactor**:
+
+1. **Red** — write the smallest failing test for the next increment. Run it; confirm it fails *for the expected reason* (not a typo/import error).
+2. **Green** — write the minimum code to make it pass. Run; confirm green.
+3. **Refactor** — clean up with the test still green.
+
+Never write implementation before a failing test exists. One behavior per cycle. Suppress with `no-tdd`.
+
+### Review Gate (after Refine, before Deliver)
+
+**From: superpowers (requesting-code-review / receiving-code-review) + GSD (gsd-code-review)**
+
+Before delivering, run an adversarial code review in a **fresh agent context** — the implementer should not be the sole reviewer of their own diff:
+
+1. Dispatch a reviewer agent with the diff (`git diff`), the plan, and the acceptance criteria.
+2. Reviewer reports findings by **severity**: `must-fix` (bugs, security, broken contracts), `should-fix` (quality, edge cases), `nice-to-have`.
+3. Write findings to `.super/review.md` (include the word `Severity` per finding).
+4. Resolve **all** must-fix (loop back to Implement), triage should-fix, record the rest. Default max 2 review → fix loops (`loops=N`).
+
+Suppress with `no-review`. Skipped automatically in SIMPLE mode.
+
+### Verification Before Completion (Deliver gate)
+
+**From: superpowers (verification-before-completion) + GSD (gsd-verify-work)**
+
+"Tests pass" is not "it works." Before the final summary, **actually run the thing** and observe the result against the acceptance criteria:
+
+- **CLI** → run the command, show real output.
+- **Server/endpoint** → start it, hit the route, show the response.
+- **UI** → load it (e.g. browser-harness) and confirm the change is visible and functional.
+- **Library** → exercise the new API in a scratch invocation.
+
+Only claim done after observing real behavior match the criteria. **If you could not run it, say so explicitly** — never imply verification you didn't perform.
 
 ### Quality Monitoring (3 layers)
 
@@ -743,6 +808,85 @@ Stop and fix if quality degrades at any layer.
 ### Iterative Refinement
 
 After testing, run gap analysis: what was requested but not built? What edge cases were missed? What could be simplified? Each refinement cycle is additive and non-destructive.
+
+---
+
+## DEBUG (Systematic Root-Cause Investigation)
+
+**From: superpowers (systematic-debugging) + GSD (gsd-debug — persistent debug sessions across context resets)**
+
+Activated when something is broken: a bug, error, crash, failing test, regression, or unexpected behavior. **Never patch a symptom before finding the root cause.** Debugging is hypothesis-driven, and its state survives context resets via `.super/debug.md`.
+
+### DEBUG vs SIMPLE vs BUILD
+
+- A trivial, obvious fix the user already diagnosed (typo, off-by-one they pointed at) is **SIMPLE**, not DEBUG.
+- DEBUG **diagnoses** — it produces a confirmed root cause and a verified fix.
+- For anything beyond a one-line fix, DEBUG hands its root-cause finding to **PLAN → BUILD**.
+- The plan guard is suppressed during pure DEBUG (set `debug_mode: true` in `state.json`) so investigation edits — log lines, probes — don't trip the no-plan warning. The *fix*, if non-trivial, still goes through PLAN.
+
+### Protocol (scientific method)
+
+```dot
+digraph debug {
+  rankdir=TB;
+  "Reproduce reliably" -> "Gather evidence (trace, code, recent diffs, logs)";
+  "Gather evidence (trace, code, recent diffs, logs)" -> "Form ONE falsifiable hypothesis";
+  "Form ONE falsifiable hypothesis" -> "Cheapest test that confirms/refutes";
+  "Cheapest test that confirms/refutes" -> "Confirmed?";
+  "Confirmed?" -> "Fix root cause + add regression test" [label="yes"];
+  "Confirmed?" -> "Record ruled-out, next hypothesis" [label="no"];
+  "Record ruled-out, next hypothesis" -> "Form ONE falsifiable hypothesis";
+  "Fix root cause + add regression test" -> "Verify: reproduction passes + no regression";
+}
+```
+
+1. **Reproduce** — establish a reliable, minimal reproduction. If you can't reproduce it, *that* is the first problem to solve. Record exact command + observed vs expected.
+2. **Gather evidence** — read the full error/stack trace, the relevant code, recent changes around the affected area (`git log`/`git diff`), and logs. Read before theorizing — the answer is usually right there.
+3. **Hypothesize** — state ONE specific, falsifiable hypothesis about the root cause and why.
+4. **Test the hypothesis** — the cheapest experiment that confirms or refutes it (add a log, write a failing test, inspect a value, `git bisect`).
+5. **Decide** — confirmed → fix the root cause. Refuted → record it as ruled-out, form the next hypothesis.
+6. **Fix & verify** — apply the minimal fix at the *root cause*, then confirm the original reproduction now passes AND nothing regressed. Prefer adding a regression test (ties into TDD).
+7. **Loop** — default max 3 hypothesis cycles (`loops=N`). Reassess strategy after 2 consecutive refuted hypotheses.
+
+### .super/debug.md format (persistent across sessions)
+
+```markdown
+## Debug Session: <symptom>
+
+### Reproduction
+- Command: `<how to trigger>`
+- Expected: <...>  |  Observed: <...>
+- Reliable? yes/no
+
+### Evidence
+- <trace excerpt, suspect code path, recent diff, log line>
+
+### Hypotheses
+- [x] H1: <cause> — TESTED: refuted (<why>)
+- [ ] H2: <cause> — TESTED: confirmed → root cause
+
+### Root Cause
+<the actual underlying cause, once found>
+
+### Fix
+- Commit <sha>: <what changed and why it addresses the root cause>
+- Regression test: <path>
+
+### Verification
+- Reproduction now: passes
+- Test suite: green
+```
+
+### Resuming a debug session
+
+When DEBUG activates and `.super/debug.md` exists: read it first, skip ruled-out hypotheses, and don't re-test refuted ideas unless conditions explicitly changed.
+
+### Rules
+
+- One hypothesis at a time — never bundle fixes.
+- Read the trace and the code before guessing.
+- Fix the root cause, not the nearest symptom. "It works now" without knowing *why* means it isn't fixed.
+- Every confirmed bug gets a regression test so it can't silently return.
 
 ---
 
@@ -855,6 +999,23 @@ Activated when there are 2+ independent tasks. Wraps other capabilities -- each 
 4. **Synthesize** - Deduplicate, resolve conflicts, identify gaps, score confidence
 5. **Retry** - Failed agents get one retry with adjusted prompt; then report partial results
 
+### Worktree Isolation (parallel file safety)
+
+**From: superpowers (using-git-worktrees) + GSD (worktree isolation)**
+
+When orchestrated agents (or BUILD waves) **modify files in parallel**, run each in its own **git worktree** so concurrent edits never collide:
+
+1. One worktree + branch per agent: `git worktree add ../.super-wt/<task-id> -b super/<task-id>`
+2. Each agent works entirely inside its worktree.
+3. On completion, merge the branch back (`git merge --no-ff super/<task-id>`) — resolve conflicts at merge time, not mid-flight.
+4. Clean up: `git worktree remove ../.super-wt/<task-id>` + delete the branch.
+
+Default ON when 2+ parallel agents write files; suppress with `no-worktrees`, force with `worktrees`. **Read-only fan-out** (audits, research, mapping) does NOT need worktrees — skip the overhead. Skip too if the repo isn't git-backed.
+
+### ruflo-swarm (default backend when installed)
+
+When the `ruflo` suite is present, ORCHESTRATE **delegates coordination to ruflo-swarm by default** instead of hand-rolling fan-out: 6 topologies (hierarchical / mesh / hierarchical-mesh / ring / star / adaptive), live **Monitor** streams, anti-drift enforcement, and built-in worktree isolation via its `swarm_*` / `agent_*` MCP tools. Pick the topology to the work: `star`/`hierarchical` for a coordinator + workers, `mesh` for peers that must cross-check, `adaptive` when unsure. Small fan-outs (2–3 agents) can still use the native path; large (5+) or long-running fan-outs should use swarm for the Monitor + anti-drift. Falls back to native ORCHESTRATE when ruflo is absent.
+
 ---
 
 ## Progress Updates (Streaming Status)
@@ -869,8 +1030,10 @@ Emit a progress line at each of these milestones:
 |------------|-----------|
 | **RESEARCH** | After each of the 4 parallel agents completes; after synthesis; after each re-research loop |
 | **MAP** | After staleness check result; after each agent completes (or is skipped); after merge |
+| **DEBUG** | After reproduction; after each hypothesis (confirmed/refuted); after root cause; after fix verification |
 | **PLAN** | After gray areas surfaced; after plan draft; after each verify loop; after user approval |
-| **BUILD** | After each phase gate (Analyze, Design, Implement, Test, Refine, Deliver) |
+| **BUILD** | After each phase gate (Analyze, Design, Implement, Test, Refine, Review, Deliver/Verify) |
+| **REVIEW** | After reviewer completes; after each must-fix resolution loop |
 | **EXPERIMENT** | After baseline; after each hypothesis result (keep/discard/reset) |
 | **ORCHESTRATE** | After decomposition; after each agent completes; after synthesis |
 
@@ -882,10 +1045,13 @@ Use a consistent single-line format with a capability tag:
 [RESEARCH 2/4] Architecture researcher complete — recommends event-driven pattern
 [MAP skip] Reusing cached maps (0 files changed since abc123)
 [MAP 1/2] Tech agent complete (partial re-map)
+[DEBUG H2] Hypothesis "stale cache key" — confirmed, root cause found
 [PLAN verify 1/3] Missing coverage for error handling — revising
 [BUILD 3/7] Implement phase complete — 4 files written, compiles clean
+[REVIEW] 2 must-fix, 3 should-fix — resolving must-fix
+[VERIFY] Ran `app --serve`, /login returns 200 — confirmed working
 [EXPERIMENT 2/5] Hypothesis "inline queries" — 15% faster, keeping
-[ORCHESTRATE 3/5] Service-C audit complete, 2 findings
+[ORCHESTRATE 3/5] Service-C audit complete (isolated worktree), 2 findings
 ```
 
 ### Rules
@@ -1073,6 +1239,143 @@ Charts are saved to `.super/charts/` as PNGs at 150 DPI. The PDF generator recei
 
 ---
 
+## POLISHED PDF (Default Institutional Report Style)
+
+**Activated automatically whenever the deliverable is a PDF.** This is the
+default `/super` PDF style — a dark-teal institutional research report with a
+full-bleed cover, running header/footer, teal-headed tables, key-finding
+callouts, and HIGH / MEDIUM / LOW confidence chips.
+
+**Suppress with `plain-pdf` or `no-polished-pdf`** when the user wants a plain
+document (e.g., black-on-white memos, single-page handouts, anything where the
+cover page would be visual overkill).
+
+### Required tools
+
+- `python3` with `playwright`, `pypdf`, and `matplotlib`
+- Playwright Chromium: `python3 -m playwright install chromium` (one-time)
+- Fallback: any `Google Chrome.app` / `chromium` / `chromium-browser` binary
+  (loses the running header/footer but otherwise renders the cover correctly)
+
+### Reusable assets
+
+These ship with the skill at `assets/polished-pdf/` (relative to this `SKILL.md`):
+
+| File | Role |
+|---|---|
+| `STYLE.md` | Style tokens, page anatomy diagrams, palette |
+| `report_template.html` | Authoritative HTML/CSS template — copy and fill |
+| `render_polished_pdf.py` | Two-pass renderer (no-header cover + header/footer body + merge) |
+
+**Always copy `report_template.html` and adapt it. Do NOT rewrite the CSS** —
+its spacing, fonts, page rules, and table styling are tuned to match the
+reference. The CSS uses CSS variables (`--teal-deep`, `--teal`, `--ink`, etc.)
+so palette tweaks are isolated to the `:root` block.
+
+### Pipeline
+
+1. **Content** — Write the report body as Markdown in `.super/<topic>/report.md`
+   while researching. Use confidence tags inline: `[HIGH]`, `[MEDIUM]`, `[LOW]`.
+2. **Charts** — Run ILLUSTRATE to produce `.super/<topic>/charts/*.png` at 150
+   DPI using the matplotlib palette in `STYLE.md`.
+3. **HTML** — Copy `assets/polished-pdf/report_template.html` to
+   `.super/<topic>/report.html`. Replace the `{{COVER_PLACEHOLDERS}}` and fill
+   in the body sections following the structure already shown in the template.
+   Convert Markdown content to HTML following these mappings:
+   - `**bold**`  → `<strong>...</strong>`
+   - `*italic*`  → `<em>...</em>`
+   - `[HIGH]`    → `<span class="tag high">HIGH</span>` (likewise `med`, `low`)
+   - Tables      → `<table><thead>…</thead><tbody>…</tbody></table>` (auto-styled)
+   - Callouts    → `<div class="key-finding"><div class="lbl">…</div><p>…</p></div>`
+   - Figures     → `<figure><img src="charts/…png"><figcaption><span class="fignum">Figure N.</span> …</figcaption></figure>`
+4. **Render** — Invoke the renderer:
+   ```bash
+   python3 <skill>/assets/polished-pdf/render_polished_pdf.py \
+       .super/<topic>/report.html  /path/to/output.pdf
+   ```
+   Header/footer text can be overridden via env vars:
+   `SUPER_PDF_HEADER_LEFT`, `SUPER_PDF_HEADER_RIGHT`, `SUPER_PDF_FOOTER_LEFT`.
+
+### Cover content checklist
+
+Fill these in based on the task:
+
+- **Pill text** — usually `"INSTITUTIONAL RESEARCH REPORT"`, but adapt
+  (`"MARKET INTELLIGENCE BRIEF"`, `"QUANT RESEARCH NOTE"`, etc.) to fit the topic.
+- **Title** — 2–6 words, sentence-case, large display.
+- **Subtitle** — 1 line explaining the angle / lens.
+- **Blurb** — 3–4 lines distilling the thesis.
+- **Meta row** — `{Month YYYY} | {Universe/tickers} | {Desk/Author}`.
+- **4 KPIs** — the headline numbers a reader should leave with. Three regular
+  KPIs + one `.wide` KPI works well when the fourth number is a phrase.
+  Use `.snug` if a KPI is borderline-too-wide (e.g. `"13 Bcf/d"`).
+- **Confidential line** — the bottom-center disclaimer; adapt or remove.
+
+### Style tokens (copy from STYLE.md)
+
+| Token | Value | Use |
+|---|---|---|
+| `--teal-deep` | `#134e4a` | Cover background |
+| `--teal` | `#1a5e5b` | Section headers, table heads, rules |
+| `--teal-mid` | `#2a7a76` | Cover pill, KPI cards, top/bottom rules |
+| `--teal-bg` | `#e9f1f0` | Key-finding callout background |
+| `--ink` | `#2c3e50` | Body text |
+| `--grey` | `#6b7c85` | Header/footer, captions |
+| `--rule` | `#d0d8dc` | Table borders, header/footer rules |
+| `--paper-cool` | `#fafbfb` | Alternating row tint |
+
+### Default chart palette (matplotlib)
+
+Match the PDF's accents — drop this at the top of any chart script that feeds
+the polished PDF:
+
+```python
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+NAVY = "#1a3a4a"; GOLD = "#c8963e"; TEAL = "#2a9d8f"
+GREEN = "#3aa674"; AMBER = "#e0a93b"; RED = "#c0392b"; GREY = "#7f8c8d"
+
+plt.rcParams.update({
+    "figure.dpi": 150, "savefig.dpi": 150,
+    "savefig.bbox": "tight", "savefig.pad_inches": 0.25,
+    "font.family": "DejaVu Sans", "font.size": 10,
+    "axes.titlesize": 13, "axes.titleweight": "bold", "axes.titlecolor": NAVY,
+    "axes.labelsize": 10.5, "axes.labelcolor": "#2c3e50",
+    "axes.edgecolor": "#999999", "axes.linewidth": 0.6,
+    "axes.spines.top": False, "axes.spines.right": False,
+    "xtick.labelsize": 9.5, "ytick.labelsize": 9.5,
+    "legend.frameon": False, "legend.fontsize": 9.5,
+    "grid.color": "#e0e0e0", "grid.linewidth": 0.5,
+})
+```
+
+### Avoiding common layout pitfalls
+
+- **Orphaned callouts** — when a key-finding callout follows a figure, wrap the
+  paragraph + callout in a `<div style="page-break-inside: avoid;">` so they
+  stay together on the same page.
+- **KPI text wrap** — if a KPI value wraps (e.g. `"13 Bcf/d"` breaking into two
+  lines), use `<span class="num">13&nbsp;Bcf/d</span>` or apply the `.snug`
+  class to reduce the font slightly.
+- **Cover page width** — cover content must fit within 6.4 inches of usable
+  width. Long titles (>6 words) need a smaller `.cover-title` font.
+- **Section start on new page** — `section.body-section` already has
+  `page-break-before: always`. Don't add manual page breaks.
+
+### When NOT to use the polished style
+
+- User explicitly says `plain-pdf` or `no-polished-pdf`
+- Deliverable is a single-page memo, table extract, or data dump
+- Output is destined for a system that doesn't render images/colors (plain text)
+- The user provides their own template/branding to follow instead
+
+When suppressed, fall back to a simple Markdown → PDF pipeline (e.g. pandoc with
+a minimal CSS, or a plain Chrome headless render of a clean HTML page).
+
+---
+
 ## Cross-Cutting Principles (Always Active)
 
 ### Context Freshness (from GSD)
@@ -1110,3 +1413,24 @@ Charts are saved to `.super/charts/` as PNGs at 150 DPI. The PDF generator recei
 - Map before modifying
 - Match existing patterns
 - Use existing abstractions before creating new ones
+
+### Find the Root Cause (from superpowers + GSD debugging)
+- Reproduce before theorizing; read the error and the code before guessing
+- Fix causes, not symptoms — "works now" without "why" isn't fixed
+- One hypothesis at a time, logged so it's never silently re-tested
+
+### Verify Before Completion (from superpowers + GSD)
+- Run the actual artifact and observe it work before claiming done — "tests pass" ≠ "it works"
+- If you couldn't run it, say so explicitly; never imply verification you didn't perform
+
+### Isolate Parallel Writes (from superpowers + GSD)
+- Concurrent file-editing agents each get their own git worktree; merge back at the end
+- Read-only fan-out needs no isolation
+
+### ruflo Integration (active when the suite is installed)
+/super runs fully standalone, but when the **ruflo** suite is detected this session it uses two of its capabilities **by default**:
+
+- **ruflo-swarm** → the default ORCHESTRATE backend (6 topologies, live Monitor streams, anti-drift enforcement, worktree isolation). Native hand-rolled fan-out is the fallback when ruflo is absent. See the ruflo-swarm subsection under ORCHESTRATE.
+- **ruflo-rag-memory** → the default cross-session memory. On resume, recall prior `.super/` artifacts (research, maps, debug findings) via HNSW semantic search instead of exact-filename file reads, so related past work surfaces even when names don't match. Plain `.super/` file reuse is the fallback.
+
+**Detection:** if ruflo's MCP tools are available this session, prefer them; otherwise fall back silently — never block on ruflo. **ruflo-sparc is intentionally not used** — its Spec→Pseudocode→Architecture→Refinement→Completion gates duplicate /super's own PLAN → BUILD pipeline.

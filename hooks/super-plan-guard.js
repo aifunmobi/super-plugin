@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// super-hook-version: 1.1.0
+// super-hook-version: 1.2.0
 // /super Plan Enforcement Guard — PreToolUse hook
 //
 // Ensures a plan exists before source code is modified when /super is active.
@@ -8,7 +8,8 @@
 //
 // How it works:
 // 1. Checks if a /super session is active (.super/ directory exists)
-// 2. Checks if SIMPLE mode is active (state.json has simple_mode: true) — if so, skip guard
+// 2. Checks if SIMPLE or DEBUG mode is active (state.json has simple_mode or
+//    debug_mode: true) — if so, skip guard (investigation edits need no plan)
 // 3. If active, checks if a plan has been created (.super/plan.md exists)
 // 4. If editing source files without a plan, injects an advisory warning
 //
@@ -76,8 +77,8 @@ process.stdin.on('end', () => {
     if (fs.existsSync(statePath)) {
       try {
         const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-        if (state.simple_mode === true) {
-          // SIMPLE mode — plan not required
+        if (state.simple_mode === true || state.debug_mode === true) {
+          // SIMPLE or DEBUG mode — plan not required (investigation/trivial edits)
           process.exit(0);
         }
       } catch {

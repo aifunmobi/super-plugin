@@ -2,7 +2,7 @@
 
 **Stop micromanaging your AI.** Just say `/super` and describe what you want. The plugin figures out the rest — whether it's a one-line typo fix or a full-stack feature spanning multiple services.
 
-`/super` is an autonomous task engine for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that combines **research, planning, codebase mapping, building, experimentation, orchestration, and CLI generation** into a single command. It reads your request, classifies the complexity, and activates exactly the right combination of capabilities — no sub-commands to memorize, no manual workflow to follow.
+`/super` is an autonomous task engine for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that combines **research, planning, codebase mapping, building, debugging, code review, TDD, experimentation, orchestration, and CLI generation** into a single command. It reads your request, classifies the complexity, and activates exactly the right combination of capabilities — no sub-commands to memorize, no manual workflow to follow.
 
 ## Why /super?
 
@@ -172,6 +172,12 @@ Force a capability **on** by name, or **off** with `no-` prefix.
 | `orchestrate` | Force ORCHESTRATE — parallel fan-out across independent subtasks | `/super orchestrate lint all 3 services` |
 | `no-orchestrate` | Handle everything sequentially, no parallel agents | `/super no-orchestrate audit the auth and payment services` |
 | `generate-cli` | Force GENERATE-CLI — schema-driven CLI tool creation | `/super generate-cli wrap the billing API` |
+| `debug` | Force DEBUG — systematic root-cause investigation with persistent state | `/super debug the checkout 500s intermittently` |
+| `tdd` | Force TDD discipline in BUILD — red → green → refactor | `/super tdd add a rate limiter` |
+| `no-tdd` | Disable TDD even if the router suggests it | `/super no-tdd add the helper` |
+| `no-review` | Skip the post-BUILD code-review gate | `/super no-review tweak the copy` |
+| `worktrees` | Force git worktree isolation for parallel/orchestrated work | `/super worktrees orchestrate refactor 4 modules` |
+| `no-worktrees` | Disable worktree isolation (run parallel agents in place) | `/super no-worktrees orchestrate audit 5 services` |
 | `illustrate` | Generate publication-quality charts from report tables (matplotlib, headless) | `/super illustrate research write a market analysis` |
 | `no-illustrate` | Skip chart generation even if data tables are present | `/super no-illustrate research quick summary` |
 
@@ -217,9 +223,9 @@ Options compose freely. Put as many as you need before the task:
 | `/super loops=0 no-map quick feature add` | No loops, no mapping, single-pass execution |
 | `/super research experiment loops=10 improve API perf` | Full investigation + experiment mode, generous loop budget |
 
-## 8 Capabilities
+## 9 Capabilities
 
-`/super` has 8 capabilities that combine automatically based on your request.
+`/super` has 9 capabilities that combine automatically based on your request.
 
 ### SIMPLE — Just do it
 
@@ -256,9 +262,22 @@ Also uses the two-phase pattern:
 
 Results are **cached with git SHA tracking** — subsequent runs only re-map what actually changed.
 
+### DEBUG — Systematic root-cause investigation
+
+For anything broken: a bug, error, crash, failing test, or regression. Hypothesis-driven (reproduce → evidence → one falsifiable hypothesis → cheapest test → fix the root cause → verify), never symptom-patching. State persists in `.super/debug.md`, so a debug session survives context resets and resumes without re-testing ruled-out theories. Trivial fixes the user already diagnosed stay in SIMPLE; non-trivial fixes hand off to PLAN → BUILD.
+
+```
+/super The checkout endpoint returns 500 intermittently
+  -> Activating: DEBUG (something broken — root-cause first)
+```
+
 ### BUILD — Multi-phase pipeline with quality gates
 
-7 phases: Analyze, Design, Implement, Test, Refine, Document, Deliver. Three layers of quality monitoring (task, integration, goal). Each phase has a gate that must pass before proceeding.
+7 phases: Analyze, Design, Implement, Test, Refine, Document, Deliver. Three layers of quality monitoring (task, integration, goal). Each phase has a gate that must pass before proceeding. Plus:
+
+- **TDD mode** (`tdd`) — inverts Implement/Test into red → green → refactor: a failing test first, then the minimum code to pass.
+- **Review gate** — before Deliver, an adversarial code review runs in a fresh context; findings are tagged by severity (`must-fix` / `should-fix` / `nice-to-have`) in `.super/review.md` and all must-fixes are resolved. Skip with `no-review`.
+- **Verification before completion** — "tests pass" ≠ "it works." Before claiming done, /super actually runs the artifact (CLI, endpoint, UI, or library call) and observes real behavior against the acceptance criteria.
 
 ### EXPERIMENT — Scientific iteration
 
@@ -270,7 +289,7 @@ Reads your API schema (OpenAPI, GraphQL, Discovery docs) or source code and gene
 
 ### ORCHESTRATE — Parallel fan-out
 
-For 2+ independent tasks. Decomposes the work, dispatches one agent per task (each with its own MAP/PLAN/BUILD internally), collects results, and synthesizes.
+For 2+ independent tasks. Decomposes the work, dispatches one agent per task (each with its own MAP/PLAN/BUILD internally), collects results, and synthesizes. When agents write files in parallel, each runs in its own **git worktree** so concurrent edits never collide, then merges back at the end (`no-worktrees` to disable; read-only fan-out skips it automatically). When the **ruflo** suite is installed, ORCHESTRATE delegates to **ruflo-swarm** by default — topology-based coordination (hierarchical / mesh / ring / star / adaptive), live Monitor streams, and anti-drift enforcement — falling back to native fan-out when ruflo is absent.
 
 ### ILLUSTRATE — Publication-quality charts
 
@@ -311,8 +330,8 @@ Structured single-line status updates during long-running work:
 
 Two hooks run automatically to keep the workflow honest:
 
-- **super-plan-guard** (PreToolUse) — Warns if source code is being edited without a plan. Suppressed in SIMPLE mode.
-- **super-research-tracker** (PostToolUse) — Tracks every artifact write, updates session state, validates that research has confidence tags, plans have verification criteria, and experiments have baselines.
+- **super-plan-guard** (PreToolUse) — Warns if source code is being edited without a plan. Suppressed in SIMPLE and DEBUG mode (investigation edits need no plan).
+- **super-research-tracker** (PostToolUse) — Tracks every artifact write, updates session state, validates that research has confidence tags, plans have verification criteria, debug logs have a root cause, reviews have severity-tagged findings, and experiments have baselines.
 
 ### Artifact persistence
 
@@ -325,6 +344,8 @@ All work lives in `.super/` in your project directory:
   research.md         # Synthesized research with confidence tags
   map-raw.md          # Raw codebase snapshot (orchestrator-gathered)
   plan.md             # Verified atomic tasks with dependency waves
+  debug.md            # DEBUG: reproduction, hypothesis log, root cause, fix verification
+  review.md           # REVIEW: code-review findings by severity, resolution status
   experiments.md      # Full experiment journal across sessions
   map-tech.md         # Stack analysis
   map-architecture.md # Architecture patterns
@@ -351,7 +372,9 @@ Maps are tagged with the git SHA at time of creation. On next run:
 
 `/super` combines proven patterns from:
 
-- [GSD](https://github.com/gsd-build/get-shit-done) — Context-engineered development (planning backbone, codebase mapping, research protocol)
+- [GSD](https://github.com/gsd-build/get-shit-done) — Context-engineered development (planning backbone, codebase mapping, research protocol, debugging, code review)
+- [superpowers](https://github.com/obra/superpowers) — Systematic debugging, TDD discipline, code review, git worktrees, verification-before-completion
+- [ruflo](https://github.com/ruvnet/ruflo) — Optional layer: swarm topologies + Monitor (ORCHESTRATE), RAG memory (cross-session recall)
 - [AutoResearch](https://github.com/karpathy/autoresearch) — Autonomous experiment loops with scientific rigor
 - [OpenSpace](https://github.com/HKUDS/OpenSpace) — Self-evolving strategy with quality monitoring
 - [CLI-Anything](https://github.com/HKUDS/CLI-Anything) — Multi-phase build pipelines
@@ -359,6 +382,16 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v2.1.0
+
+- **DEBUG capability** — Systematic, hypothesis-driven root-cause investigation with state persisted to `.super/debug.md` (survives context resets). From superpowers (systematic-debugging) + GSD (gsd-debug). New `debug` option; plan guard suppressed during pure debug.
+- **Review gate** — Adversarial code review in a fresh context after BUILD's Refine phase; severity-tagged findings (`must-fix` / `should-fix` / `nice-to-have`) in `.super/review.md`; all must-fixes resolved before Deliver. From superpowers (requesting/receiving-code-review) + GSD (gsd-code-review). Skip with `no-review`.
+- **TDD mode** — `tdd` option enforces red → green → refactor in BUILD. From superpowers (test-driven-development) + GSD opt-in `tdd_mode`. Disable with `no-tdd`.
+- **Worktree isolation** — Parallel/orchestrated agents that write files each run in their own git worktree, merged back at the end. From superpowers (using-git-worktrees) + GSD worktree isolation. `worktrees` / `no-worktrees`.
+- **Verification before completion** — BUILD's Deliver gate now requires actually running the artifact and observing it work, not just "tests pass." From superpowers (verification-before-completion) + GSD (gsd-verify-work).
+- **ruflo integration (active when installed)** — When the ruflo suite is detected, ORCHESTRATE uses **ruflo-swarm** by default (topologies + live Monitor + anti-drift), and cross-session resume uses **ruflo-rag-memory** for semantic recall of past `.super/` artifacts. Both fall back silently to native behavior when ruflo is absent; ruflo-sparc is intentionally not adopted (overlaps /super's native PLAN → BUILD pipeline).
+- Hooks updated to 1.2.0: plan guard also skips DEBUG mode; research tracker tracks and validates `debug.md` and `review.md`.
 
 ### v2.0.0
 

@@ -139,8 +139,8 @@ test('Install URL uses main branch', () => {
   assert(README.includes('aifunmobi/super-plugin/main/install.sh'), 'Not using main branch');
 });
 
-test('All 8 capabilities mentioned', () => {
-  const caps = ['SIMPLE', 'PLAN', 'RESEARCH', 'MAP', 'BUILD', 'EXPERIMENT', 'GENERATE-CLI', 'ORCHESTRATE'];
+test('All capabilities mentioned', () => {
+  const caps = ['SIMPLE', 'PLAN', 'RESEARCH', 'MAP', 'DEBUG', 'BUILD', 'EXPERIMENT', 'GENERATE-CLI', 'ORCHESTRATE'];
   const missing = caps.filter(c => !README.includes(c));
   assert(missing.length === 0, `Missing: ${missing.join(', ')}`);
 });

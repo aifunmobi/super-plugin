@@ -1,0 +1,302 @@
+<!doctype html>
+<!--
+  /super polished PDF — institutional report style.
+
+  This template is the AUTHORITATIVE structure. Copy it, fill in your content,
+  and render with `render_polished_pdf.py`. Do NOT rewrite the CSS — its
+  spacing, colors, and page rules are tuned to match the reference style.
+
+  Replace the {{ ... }} placeholders on the cover. For body sections, follow
+  the example structure: <section class="inner content body-section"> with
+  numbered <h1 class="section"> + <div class="section-rule"> + <h2 class="subsection">.
+
+  Inline confidence tags: <span class="tag high|med|low">HIGH</span>
+  Key-finding callout:    <div class="key-finding"><div class="lbl">LABEL</div><p>...</p></div>
+  Figure with caption:    <figure><img src="charts/X.png"><figcaption><span class="fignum">Figure N.</span> …</figcaption></figure>
+  Tables: <table><thead>…</thead><tbody>…</tbody></table> — auto-styled with teal head
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{TITLE_PLAIN}}</title>
+<style>
+  :root {
+    --teal-deep:    #134e4a;
+    --teal:         #1a5e5b;
+    --teal-mid:     #2a7a76;
+    --teal-light:   #b8d4d1;
+    --teal-bg:      #e9f1f0;
+    --ink:          #2c3e50;
+    --ink-soft:     #3d4f5c;
+    --grey:         #6b7c85;
+    --grey-light:   #9aa7b0;
+    --rule:         #d0d8dc;
+    --paper:        #ffffff;
+    --paper-cool:   #fafbfb;
+  }
+
+  @page { size: Letter; margin: 0.85in; }
+  @page :first { margin: 0; }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    font-family: "Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans", sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============== COVER ============== */
+  .cover {
+    page-break-after: always;
+    background: var(--teal-deep);
+    color: #ffffff;
+    min-height: 11in;
+    width: 8.5in;
+    margin: 0; padding: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .cover-top-rule, .cover-bottom-rule { height: 14px; background: var(--teal-mid); }
+  .cover-body { padding: 1.1in 0.95in 0.7in 0.95in; flex: 1; display: flex; flex-direction: column; }
+  .cover-pill {
+    display: inline-block; background: var(--teal-mid); color: #ffffff;
+    padding: 8px 22px; border-radius: 24px;
+    font-size: 10pt; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase;
+    align-self: flex-start; margin-bottom: 1.05in;
+  }
+  .cover-title {
+    font-size: 52pt; font-weight: 800; line-height: 1.05;
+    letter-spacing: -0.01em; color: #ffffff; margin: 0 0 0.45in 0;
+  }
+  .cover-subtitle {
+    font-size: 21pt; font-weight: 400; line-height: 1.25;
+    color: rgba(255,255,255,0.86); margin: 0 0 0.4in 0; max-width: 6.1in;
+  }
+  .cover-blurb {
+    font-size: 10.5pt; line-height: 1.55; color: rgba(255,255,255,0.88);
+    max-width: 6.4in; margin: 0;
+  }
+  .cover-divider { height: 1px; background: rgba(255,255,255,0.28); margin: 0.35in 0 0.28in 0; }
+  .cover-meta { font-size: 10pt; color: rgba(255,255,255,0.85); letter-spacing: 0.02em; margin-bottom: 0.55in; }
+  .cover-meta .pipe { color: rgba(255,255,255,0.4); padding: 0 14px; }
+
+  .kpi-row { display: flex; gap: 14px; margin-bottom: 0.45in; flex-wrap: wrap; }
+  .kpi {
+    background: var(--teal-mid); border-radius: 6px;
+    padding: 18px 18px 16px 18px; flex: 1; min-width: 1.4in; text-align: center;
+  }
+  .kpi .num { font-size: 26pt; font-weight: 800; color: #ffffff; line-height: 1.0; display: block; margin-bottom: 6px; }
+  .kpi .lab { font-size: 9pt; color: rgba(255,255,255,0.88); line-height: 1.25; display: block; }
+  .kpi.wide .num { font-size: 14pt; font-weight: 700; }
+  .kpi.snug .num { font-size: 20pt; font-weight: 800; }
+
+  .cover-confidential {
+    text-align: center; font-size: 9pt; font-weight: 600; letter-spacing: 0.02em;
+    color: rgba(255,255,255,0.90); margin-top: auto; padding-bottom: 0.2in;
+  }
+
+  /* ============== INNER ============== */
+  h1.section {
+    font-size: 26pt; color: var(--teal); font-weight: 800;
+    letter-spacing: -0.005em; margin: 0 0 0.12in 0; padding-top: 0.22in;
+    page-break-after: avoid;
+  }
+  h1.section + .section-rule { border-bottom: 2px solid var(--teal); margin-bottom: 0.28in; }
+  h2.subsection {
+    font-size: 14pt; color: var(--teal); font-weight: 700;
+    margin: 0.32in 0 0.12in 0; page-break-after: avoid;
+  }
+  h3.minor {
+    font-size: 11.5pt; color: var(--ink); font-weight: 700;
+    margin: 0.22in 0 0.08in 0; page-break-after: avoid;
+  }
+
+  p { margin: 0 0 0.13in 0; text-align: justify; text-justify: inter-word; hyphens: auto; }
+  p.lede { font-size: 11pt; color: var(--ink-soft); }
+  ul, ol { margin: 0.05in 0 0.18in 0; padding-left: 0.28in; }
+  li { margin-bottom: 0.06in; line-height: 1.5; }
+  strong { color: var(--ink); font-weight: 700; }
+  em { color: var(--ink-soft); }
+
+  /* Confidence tags */
+  .tag {
+    display: inline-block; padding: 1px 7px; border-radius: 3px;
+    font-size: 8.4pt; font-weight: 700; letter-spacing: 0.04em; vertical-align: 1px;
+  }
+  .tag.high { background: #d4edda; color: #155724; }
+  .tag.med  { background: #fff3cd; color: #856404; }
+  .tag.low  { background: #f8d7da; color: #721c24; }
+
+  /* Tables */
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 0.16in 0 0.22in 0; font-size: 9.7pt; page-break-inside: avoid;
+  }
+  thead th {
+    background: var(--teal); color: #ffffff; text-align: left;
+    padding: 8px 10px; font-weight: 700; font-size: 9.6pt;
+    letter-spacing: 0.01em; border-bottom: 1px solid var(--teal-deep);
+  }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; color: var(--ink); }
+  tbody tr:nth-child(even) td { background: var(--paper-cool); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Key-finding callout */
+  .key-finding {
+    background: var(--teal-bg); border-left: 4px solid var(--teal);
+    padding: 14px 18px; margin: 0.18in 0 0.22in 0;
+    border-radius: 0 4px 4px 0; page-break-inside: avoid;
+  }
+  .key-finding .lbl {
+    font-size: 9pt; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--teal); margin-bottom: 6px;
+  }
+  .key-finding p { margin: 0; }
+
+  /* Figures */
+  figure { margin: 0.22in 0 0.24in 0; page-break-inside: avoid; text-align: center; }
+  figure img { max-width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 3px; }
+  figcaption { font-size: 9pt; color: var(--grey); margin-top: 8px; font-style: italic; text-align: center; }
+  figcaption .fignum { font-weight: 700; color: var(--teal); font-style: normal; margin-right: 6px; }
+
+  /* TOC */
+  .toc-list { list-style: none; padding: 0; margin: 0.15in 0 0 0; }
+  .toc-list > li { margin-bottom: 0.10in; }
+  .toc-list .toc-section { font-weight: 700; font-size: 11pt; color: var(--ink); }
+  .toc-list .toc-sub {
+    font-weight: 400; font-size: 10pt; color: var(--grey);
+    margin-left: 0.28in; display: block; margin-top: 4px;
+  }
+
+  /* Sources block */
+  .sources { font-size: 9.5pt; line-height: 1.5; }
+  .sources strong { color: var(--teal); }
+
+  /* Note */
+  .note { font-size: 8.8pt; color: var(--grey); font-style: italic; margin-top: 6px; }
+
+  /* Page-break helpers */
+  h2.subsection, h3.minor, table, figure, .key-finding { page-break-inside: avoid; }
+  section.body-section { page-break-before: always; }
+  section.body-section:first-of-type { page-break-before: auto; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     COVER PAGE — replace placeholders
+     ============================================================ -->
+<div class="cover">
+  <div class="cover-top-rule"></div>
+  <div class="cover-body">
+    <span class="cover-pill">{{REPORT_TYPE_PILL}}</span>
+
+    <h1 class="cover-title">{{TITLE}}</h1>
+
+    <p class="cover-subtitle">{{SUBTITLE}}</p>
+
+    <p class="cover-blurb">{{BLURB_3_OR_4_LINES}}</p>
+
+    <div class="cover-divider"></div>
+
+    <div class="cover-meta">
+      {{MONTH_YEAR}} <span class="pipe">|</span>
+      {{UNIVERSE_OR_TICKERS}} <span class="pipe">|</span>
+      {{DESK_OR_AUTHOR}}
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi">
+        <span class="num">{{KPI_1_NUM}}</span>
+        <span class="lab">{{KPI_1_LABEL}}</span>
+      </div>
+      <div class="kpi">
+        <span class="num">{{KPI_2_NUM}}</span>
+        <span class="lab">{{KPI_2_LABEL}}</span>
+      </div>
+      <div class="kpi">
+        <span class="num">{{KPI_3_NUM}}</span>
+        <span class="lab">{{KPI_3_LABEL}}</span>
+      </div>
+      <div class="kpi wide">
+        <span class="num">{{KPI_4_NUM}}</span>
+        <span class="lab">{{KPI_4_LABEL}}</span>
+      </div>
+    </div>
+
+    <div class="cover-confidential">{{CONFIDENTIAL_LINE}}</div>
+  </div>
+  <div class="cover-bottom-rule"></div>
+</div>
+
+<!-- ============================================================
+     TABLE OF CONTENTS
+     ============================================================ -->
+<section class="inner content">
+  <h1 class="section">Table of Contents</h1>
+  <div class="section-rule"></div>
+
+  <ol class="toc-list">
+    <li>
+      <span class="toc-section">1. &nbsp;Section Title</span>
+      <span class="toc-sub">1.1 Subsection</span>
+      <span class="toc-sub">1.2 Subsection</span>
+    </li>
+    <!-- repeat for each section -->
+  </ol>
+</section>
+
+<!-- ============================================================
+     BODY SECTION TEMPLATE (repeat for each section)
+     ============================================================ -->
+<section class="inner content body-section">
+  <h1 class="section">1.&nbsp;&nbsp;Section Title</h1>
+  <div class="section-rule"></div>
+
+  <h2 class="subsection">1.1&nbsp;&nbsp;Subsection</h2>
+
+  <p class="lede">
+    Opening lede paragraph in slightly larger, softer-colored text.
+  </p>
+
+  <p>
+    Body paragraph with <strong>bold emphasis</strong> and a confidence
+    chip <span class="tag high">HIGH</span> inline.
+  </p>
+
+  <div class="key-finding">
+    <div class="lbl">Key Finding &mdash; Title Here</div>
+    <p>
+      Short, punchy callout that summarizes the trading or research implication.
+    </p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Column A</th>
+        <th class="num">Column B</th>
+        <th>Column C</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Row 1</td><td class="num">$12.0M</td><td>Source citation</td></tr>
+      <tr><td>Row 2</td><td class="num">3&ndash;10 days</td><td>Source citation</td></tr>
+    </tbody>
+  </table>
+
+  <figure>
+    <img src="charts/01-example.png" alt="Example chart">
+    <figcaption>
+      <span class="fignum">Figure 1.</span> Caption describes what the chart shows.
+    </figcaption>
+  </figure>
+</section>
+
+</body>
+</html>
