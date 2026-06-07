@@ -35,6 +35,19 @@ fi
 ln -sf "$SRC" "$TARGET"
 echo "  Linked Codex /super skill -> $TARGET -> repo"
 
+# 1b. Slash-command shim — a thin /super prompt that activates the skill.
+# Codex scans only top-level .md files in ~/.codex/prompts. (Custom prompts are
+# deprecated in favor of skills, but this keeps an explicit /super command.)
+CODEX_PROMPTS_DIR="$CODEX_DIR/prompts"
+mkdir -p "$CODEX_PROMPTS_DIR"
+PROMPT_TARGET="$CODEX_PROMPTS_DIR/super.md"
+PROMPT_SRC="$PLUGIN_DIR/codex/prompts/super.md"
+if [ -e "$PROMPT_TARGET" ] && [ ! -L "$PROMPT_TARGET" ]; then
+  mv "$PROMPT_TARGET" "$PROMPT_TARGET.bak.$(date +%s)"
+fi
+ln -sf "$PROMPT_SRC" "$PROMPT_TARGET"
+echo "  Linked Codex /super prompt -> $PROMPT_TARGET -> repo"
+
 # 2. AGENTS.md primer — managed block, inserted/updated between markers.
 AGENTS="$CODEX_DIR/AGENTS.md"
 [ -f "$AGENTS" ] || : > "$AGENTS"

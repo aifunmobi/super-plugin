@@ -76,6 +76,7 @@ echo "    ~/.claude/hooks/super-research-tracker.js"
 echo "    ~/.claude/settings.json (hooks registered)"
 if [ -d "$HOME/.codex" ]; then
   echo "    ~/.codex/skills/super/SKILL.md         (/super for Codex -> repo)"
+  echo "    ~/.codex/prompts/super.md              (/super slash command -> repo)"
   echo "    ~/.codex/AGENTS.md (super primer)"
 fi
 echo ""

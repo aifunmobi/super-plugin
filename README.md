@@ -383,6 +383,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 
 ## Changelog
 
+### v2.3.1
+
+- **Codex `/super` slash-command shim** — `install-codex.sh` now also symlinks a thin `~/.codex/prompts/super.md` that activates the super skill on the supplied request (`$ARGUMENTS`), giving Codex an explicit `/super` command alongside skill auto-activation. (Codex marks custom prompts deprecated in favor of skills, so the skill remains the primary path; this is belt-and-suspenders.)
+
 ### v2.3.0
 
 - **Codex support (CLI + desktop app)** — `/super` now works in OpenAI Codex too. `install-codex.sh` symlinks the super `SKILL.md` into `~/.codex/skills/super` (Codex auto-discovers it; the symlink means `/super update` keeps it current) and injects a managed precedence primer into `~/.codex/AGENTS.md` so Codex treats `/super` as the preferred top-level router at session start. Idempotent; no-op when Codex isn't installed. Wired into both `install.sh` and `/super update`. (Cloud Codex tasks read a repo's own `AGENTS.md`, so add the primer per-repo for cloud runs.)
