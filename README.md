@@ -383,6 +383,10 @@ Maps are tagged with the git SHA at time of creation. On next run:
 
 ## Changelog
 
+### v2.3.0
+
+- **Codex support (CLI + desktop app)** — `/super` now works in OpenAI Codex too. `install-codex.sh` symlinks the super `SKILL.md` into `~/.codex/skills/super` (Codex auto-discovers it; the symlink means `/super update` keeps it current) and injects a managed precedence primer into `~/.codex/AGENTS.md` so Codex treats `/super` as the preferred top-level router at session start. Idempotent; no-op when Codex isn't installed. Wired into both `install.sh` and `/super update`. (Cloud Codex tasks read a repo's own `AGENTS.md`, so add the primer per-repo for cloud runs.)
+
 ### v2.2.1
 
 - **Startup precedence** — The SessionStart primer now explicitly asserts precedence over the superpowers `using-superpowers` startup message for task routing: `/super` is the top-level router, consulted first, and it delegates *to* the superpowers skills (TDD, code-review, debugging, worktrees, verification) rather than competing with them. Order of authority: user instructions > /super primer > superpowers > defaults.

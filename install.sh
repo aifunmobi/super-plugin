@@ -61,6 +61,9 @@ echo "  Linked /refresh skill -> $REFRESH_DIR/SKILL.md -> repo"
 # Symlink + register hooks (shared with /super update — idempotent).
 bash "$PLUGIN_DIR/install-hooks.sh"
 
+# Set up /super for OpenAI Codex (CLI + desktop app) if Codex is installed.
+bash "$PLUGIN_DIR/install-codex.sh"
+
 echo ""
 echo "  Done! v$VERSION installed."
 echo ""
@@ -71,6 +74,10 @@ echo "    ~/.claude/hooks/super-session-start.js   (/super primer at startup)"
 echo "    ~/.claude/hooks/super-plan-guard.js"
 echo "    ~/.claude/hooks/super-research-tracker.js"
 echo "    ~/.claude/settings.json (hooks registered)"
+if [ -d "$HOME/.codex" ]; then
+  echo "    ~/.codex/skills/super/SKILL.md         (/super for Codex -> repo)"
+  echo "    ~/.codex/AGENTS.md (super primer)"
+fi
 echo ""
 echo "  Commands:"
 echo "    /super             — autonomous task engine"
