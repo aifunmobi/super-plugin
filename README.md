@@ -32,6 +32,18 @@ Everything is persisted to `.super/` — surviving context resets, session bound
 | Reports are walls of text and tables | **Illustrate** — auto-generates charts from data tables (bar charts, heatmaps, decay curves) |
 | Stale artifacts pile up | **Cleanup** — `/super clean` to archive or remove old work |
 
+## Specialist handoff
+
+`/super` orchestrates; where you have a dedicated specialist installed, it hands off the matching slice instead of hand-rolling it in the generic pipeline. Detection is by presence — if a specialist isn't installed, `/super` uses its normal flow and never mentions it. Currently recognized:
+
+| Specialist | Domain | Source |
+|---|---|---|
+| **impeccable** | Frontend UI / visual design, styling, polish, UX, typography, motion | Local agent skill (`~/.claude/skills/impeccable`) |
+| **OpenMontage** | Video creation / editing / montage / voice-over → MP4 | [github.com/calesthio/OpenMontage](https://github.com/calesthio/OpenMontage) |
+| **notebooklm** | Infographics + NotebookLM artifacts (audio overview, briefing, study guide) | [github.com/teng-lin/notebooklm-py](https://github.com/teng-lin/notebooklm-py) |
+
+The set is extensible: install any specialist `/super` recognizes and it routes to it automatically for that domain. Absent specialists fall back to the normal pipeline silently.
+
 ## Quick start
 
 **One command — installs fresh or updates an existing install.** It's idempotent: clones if new, `git pull`s (and re-registers hooks + syncs Codex) if `/super` is already installed. Safe to re-run anytime.
