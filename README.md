@@ -34,11 +34,13 @@ Everything is persisted to `.super/` — surviving context resets, session bound
 
 ## Quick start
 
+**One command — installs fresh or updates an existing install.** It's idempotent: clones if new, `git pull`s (and re-registers hooks + syncs Codex) if `/super` is already installed. Safe to re-run anytime.
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aifunmobi/super-plugin/main/install.sh | bash
 ```
 
-That's it. Restart Claude Code and start using `/super`.
+That's it. Restart Claude Code and start using `/super`. Re-run the same line whenever you want the latest — or run `/super update` from inside Claude Code.
 
 ### OpenAI Codex setup
 
@@ -408,6 +410,13 @@ Maps are tagged with the git SHA at time of creation. On next run:
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) — Schema-driven output patterns
 
 ## Changelog
+
+### v2.4.0
+
+- **EXPERIMENT rigor: pre-registration + noise gate.** The scientific-iteration loop now requires stating the metric, concrete decision thresholds, falsifiers, and a token/wall-clock budget *before* the first run — and passes every result through a noise/confound gate (is it above threshold? real or run-to-run noise? the change or a leak/environment confound?) before it can be kept. `experiments.md` gains a Pre-registration block and a per-experiment Confidence field. Stops motivated reasoning from banking a directional single-run result as fact.
+- **Cost & escalation discipline.** New router principle: default to the smallest capability set that can succeed, escalate to ORCHESTRATE/fan-out/worktrees only when you can name the independent sub-tasks, report the spend (capabilities, subagents, rough tokens) on non-SIMPLE tasks, and match verification effort to blast radius. Counters the engine's native failure mode of over-orchestrating small tasks.
+- **Specialist handoff.** The router now detects installed domain experts and hands off the matching slice instead of hand-rolling it in BUILD: **impeccable** (frontend styling/design), **OpenMontage** (`~/Developer/OpenMontage`, video creation → deliver MP4 to `~/Downloads`), and **notebooklm** (infographics and other NotebookLM artifacts from sources). Detection is by presence — absent specialists fall back to the normal pipeline silently. Extensible to any future installed specialist.
+- **Docs:** Quick start now spells out that the one-line installer is idempotent — the same command installs fresh or updates an existing install in place.
 
 ### v2.3.3
 

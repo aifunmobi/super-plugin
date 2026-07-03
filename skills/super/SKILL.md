@@ -244,6 +244,15 @@ Before full classification, check if the task is trivial. **SIMPLE mode skips PL
 
 **Announce:** `Activating: SIMPLE (trivial change, skipping full pipeline)`
 
+### Cost & Escalation Discipline
+
+The router's native failure mode is doing *too much* — spinning up MAP + RESEARCH + parallel agents for a task that wanted a two-line change. Default to the **smallest capability set that can succeed**, and escalate only on evidence, not reflex.
+
+- **Bias down.** Unsure between two activation sets? Pick the smaller. You can add a capability after seeing you need it; you can't refund the tokens spent on one you didn't.
+- **Escalation needs a reason.** ORCHESTRATE / parallel fan-out / worktrees are for genuinely independent, parallelizable work — not for making one task feel thorough. If you can't name the independent sub-tasks, don't fan out.
+- **Report the spend.** On any non-SIMPLE task, end with a one-line cost note: capabilities run, subagents spawned, rough tokens/wall-clock. Over-orchestration should be visible, not invisible.
+- **Match effort to stakes.** A reversible, low-blast-radius change doesn't need the full verify gauntlet; an irreversible or wide one does. Spend verification where a mistake is expensive, not uniformly.
+
 ### Step 2: Classification Rules
 
 Read the user's request and activate capabilities based on these signals. **Multiple capabilities activate together** -- this is not pick-one. Apply any user overrides from Step 0 after classification.
@@ -258,6 +267,22 @@ Read the user's request and activate capabilities based on these signals. **Mult
 | "Faster", "optimize", "improve", "try different approaches" | **EXPERIMENT** | Scientific iteration loop with keep/discard tracking |
 | "Wrap this API", "make a CLI for", "scriptable interface" | **GENERATE-CLI** | Auto-generate CLI from schema/source |
 | 2+ independent tasks, "audit all", "do X for each" | **ORCHESTRATE** | Parallel agent fan-out |
+
+### Specialist Handoff (installed domain experts)
+
+Before routing domain-specific work through the generic BUILD/EXPERIMENT pipeline, check whether a specialist is installed that owns that domain — and hand that slice to it. `/super` orchestrates; the specialist does the craft. Detection is by presence: if the specialist isn't installed, fall back to the normal pipeline silently (never mention it).
+
+| Detect (exists?) | Domain it owns | When the task matches → |
+|---|---|---|
+| `~/.claude/skills/impeccable/` | Frontend UI / visual design, styling, polish, UX, layout, theming, typography, motion | Invoke the **impeccable** skill for the design/styling work instead of hand-rolling CSS/markup in BUILD — "make it look good", redesigns, component polish, design systems, visual craft. |
+| `~/Developer/OpenMontage/` | Video creation / editing / montage / voice-over | Route video work through **OpenMontage**: work from that folder (it reads its own `CLAUDE.md` / `AGENT_GUIDE.md`), describe the video in natural language, deliver the final MP4 to `~/Downloads`. Don't reimplement video tooling. |
+| `~/.claude/skills/notebooklm/` | Infographics + NotebookLM artifacts (audio overview/podcast, briefing, study guide) from source documents | Invoke the **notebooklm** skill/CLI to generate the artifact instead of hand-building it — especially **infographics**, but also podcasts/briefings from sources. Use when the task wants a NotebookLM-style deliverable from documents. |
+
+**Rules:**
+- **Detect at runtime, don't assume.** Confirm the path exists before routing to it; if absent, use the normal pipeline and say nothing.
+- **Hand off the slice, not the whole task.** A task can be part generic (wire the API) and part specialist (style the page) — run BUILD for the former, the specialist for the latter.
+- **The specialist's conventions win in its domain** — follow OpenMontage's deliver-to-`~/Downloads` convention and impeccable's committed design choices rather than overriding them with generic defaults.
+- **Extensible:** the same pattern applies to any future installed specialist — detect by presence, match by domain, hand off the matching slice.
 
 ### Typical Combinations
 
@@ -919,6 +944,13 @@ Experiments persist across sessions via `.super/experiments.md`. When EXPERIMENT
 ```markdown
 ## Experiment Log: <optimization target>
 
+### Pre-registration
+- **Metric:** <the deciding number + exactly how it's measured>
+- **Decision rule:** <concrete thresholds, e.g. "≥+15% keep · +5–15% marginal · ≤+5% discard">
+- **Falsifiers:** <what result would disprove the hypothesis>
+- **Budget:** <max iterations · token/wall-clock ceiling>
+- **Confounds controlled:** <runs for noise · leakage check · environment>
+
 ### Baseline
 - **Measured:** <timestamp>
 - **Git SHA:** <sha>
@@ -930,7 +962,8 @@ Experiments persist across sessions via `.super/experiments.md`. When EXPERIMENT
 - **Hypothesis:** <what we expect and why>
 - **Implemented:** <timestamp> (commit <sha>)
 - **Result:** <metric value> (<% change from baseline>)
-- **Decision:** kept | discarded | reset
+- **Confidence:** <statistical (Nx runs) | directional (N=1) | confounded — why>
+- **Decision:** kept | discarded | reset  (per the pre-registered rule + noise gate)
 - **Notes:** <what we learned>
 
 ### Experiment #2 — ...
@@ -946,14 +979,29 @@ Experiments persist across sessions via `.super/experiments.md`. When EXPERIMENT
 - <dead ends to avoid>
 ```
 
+### Pre-registration (write BEFORE the first run — non-negotiable for a trustworthy result)
+
+Deciding the threshold *after* seeing the number is how motivated reasoning slips in. Commit to the rules first, record them verbatim in `experiments.md`, then measure. State:
+
+- **Metric** — the single number that decides success, and exactly how it's measured (command, dataset, environment). One metric, not a vibe.
+- **Decision rule** — concrete thresholds, not "better/worse": e.g. "≥ +15% keep; +5–15% marginal → one more iteration; ≤ +5% discard". A bare "improved" is not a decision rule.
+- **Falsifiers** — what result would prove the hypothesis WRONG. If nothing could, it isn't a hypothesis.
+- **Budget** — max iterations AND a token/wall-clock ceiling for the whole experiment; stop at the ceiling even mid-idea.
+- **Confounds to control** — sampling noise (how many runs?), leakage (does the eval share anything with what's being tuned?), environment (contention, warm cache, warm-up).
+
 ### Protocol
 
-1. **Baseline** - Measure current state (or reuse existing if fresh)
-2. **Hypothesize** - State expected change and why (check prior experiments to avoid repeats)
-3. **Implement** - Make the change (git commit)
-4. **Measure** - Same evaluation as baseline
-5. **Decide**: Better = keep. Worse = reset. Crashed = reset + adjust.
-6. **Loop** - Default max 3 experiments per session (override with `loops=N`). Reassess strategy if no improvement after 2 consecutive experiments.
+1. **Pre-register** - Write the block above to `experiments.md` before touching anything.
+2. **Baseline** - Measure current state (or reuse existing if fresh), using the pre-registered metric/command.
+3. **Hypothesize** - State expected change and why (check prior experiments to avoid repeats).
+4. **Implement** - Make the change (git commit).
+5. **Measure** - Same evaluation as baseline.
+6. **Decide against the pre-registered rule, through the noise gate.** Before calling anything a win:
+   - **Above threshold?** Apply the pre-registered decision rule, not a fresh judgment.
+   - **Real or noise?** A single run at nonzero temperature is directional, not statistical. If the delta sits within run-to-run variance, it's noise — re-run (2–3×) or widen the sample before keeping. Label it "directional, N=1" honestly rather than reporting it as fact.
+   - **The change or a confound?** Rule out leakage (metric moved because the eval overlaps the tuning target), environment (warm cache, less contention), and overfitting to a proxy signal the true metric doesn't share.
+   - Keep only if it clears the rule AND survives the gate. Report the surviving caveats alongside the number.
+7. **Loop** - Default max 3 experiments per session (override with `loops=N`). Reassess strategy if no improvement after 2 consecutive experiments; stop at the pre-registered budget regardless.
 
 ### Constraints
 
