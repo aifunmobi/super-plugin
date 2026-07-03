@@ -38,7 +38,7 @@ Everything is persisted to `.super/` — surviving context resets, session bound
 
 | Specialist | Domain | Source |
 |---|---|---|
-| **impeccable** | Frontend UI / visual design, styling, polish, UX, typography, motion | Local agent skill (`~/.claude/skills/impeccable`) |
+| **impeccable** | Frontend UI / visual design, styling, polish, UX, typography, motion | [github.com/pbakaus/impeccable](https://github.com/pbakaus/impeccable) |
 | **OpenMontage** | Video creation / editing / montage / voice-over → MP4 | [github.com/calesthio/OpenMontage](https://github.com/calesthio/OpenMontage) |
 | **notebooklm** | Infographics + NotebookLM artifacts (audio overview, briefing, study guide) | [github.com/teng-lin/notebooklm-py](https://github.com/teng-lin/notebooklm-py) |
 
